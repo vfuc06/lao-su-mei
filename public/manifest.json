@@ -1,0 +1,16 @@
+{
+  "short_name": "Lão Sư Mei",
+  "name": "Lão Sư Mei - Gia Sư Tiếng Trung Giao Tiếp",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#c93b2b",
+  "display": "standalone",
+  "orientation": "portrait"
+}
