@@ -129,8 +129,11 @@ Giúp học viên NÓI và NGHE tiếng Trung giao tiếp hằng ngày một cá
 11. Không nói chuyện ngoài chủ đề học tiếng; nếu học viên hỏi việc khác, nhẹ nhàng đưa lại về luyện nói.
 12. Nếu đây là lượt mở đầu (người dùng chưa nói gì hoặc bắt đầu tình huống), bạn HÃY LÀ NGƯỜI CHỦ ĐỘNG CHÀO HỎI TRƯỚC theo đúng vai của mình và hỏi một câu mở màn thật ngắn gọn, kèm 2-3 gợi ý câu trả lời.
 
-# ĐỊNH DẠNG ĐẦU RA
-Chỉ trả về JSON hợp lệ theo đúng schema được cung cấp.`;
+# ĐỊNH DẠNG ĐẦU RA (BẮT BUỘC TUÂN THỦ NGHIÊM NGẶT):
+Chỉ trả về JSON hợp lệ theo đúng schema được cung cấp.
+- "hanzi": BẮT BUỘC LÀ CHỮ HÁN GIẢN THỂ (汉字 - chữ tượng hình Trung Quốc như 你好，谢谢，想喝什么). TUYỆT ĐỐI KHÔNG ĐƯỢC để chữ cái La-tinh hay pinyin vào trường "hanzi".
+- "pinyin": Phiên âm pinyin có dấu thanh chuẩn (ví dụ: Nǐ hǎo! Xièxie!).
+- "vietnamese": Bản dịch nghĩa tiếng Việt tự nhiên, ấm áp.`;
 
   try {
     const ai = new GoogleGenAI({ apiKey });
@@ -153,12 +156,13 @@ Chỉ trả về JSON hợp lệ theo đúng schema được cung cấp.`;
       promptText += `Học viên vừa nói: "${userInput.trim()}" (ngôn ngữ: ${inputLang === 'vi' ? 'Tiếng Việt' : 'Tiếng Trung'}).`;
     }
 
-    // Danh sách model ưu tiên
+    // Danh sách model thế hệ mới ưu tiên (đã kiểm tra tương thích trực tiếp với Google AI Studio):
     const candidateModels = [
       process.env.GEMINI_MODEL,
-      'gemini-2.5-flash',
-      'gemini-1.5-flash',
-      'gemini-2.0-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-flash-latest',
+      'gemini-3.8-flash',
+      'gemini-3.5-flash',
     ].filter(Boolean) as string[];
 
     let lastError: any = null;
@@ -177,10 +181,11 @@ Chỉ trả về JSON hợp lệ theo đúng schema được cung cấp.`;
               properties: {
                 reply: {
                   type: Type.OBJECT,
+                  description: 'Câu nói của Lão Sư Mei',
                   properties: {
-                    hanzi: { type: Type.STRING },
-                    pinyin: { type: Type.STRING },
-                    vietnamese: { type: Type.STRING },
+                    hanzi: { type: Type.STRING, description: 'BẮT BUỘC là CHỮ HÁN GIẢN THỂ (汉字 - chữ tượng hình, ví dụ: 你好！). TUYỆT ĐỐI KHÔNG để pinyin vào đây.' },
+                    pinyin: { type: Type.STRING, description: 'Phiên âm pinyin có dấu thanh chuẩn, ví dụ: Nǐ hǎo!' },
+                    vietnamese: { type: Type.STRING, description: 'Nghĩa tiếng Việt tự nhiên' },
                   },
                   required: ['hanzi', 'pinyin', 'vietnamese'],
                 },
@@ -189,32 +194,34 @@ Chỉ trả về JSON hợp lệ theo đúng schema được cung cấp.`;
                   properties: {
                     hasMistake: { type: Type.BOOLEAN },
                     userSaid: { type: Type.STRING },
-                    better: { type: Type.STRING },
-                    explanation: { type: Type.STRING },
-                    pronunciationTip: { type: Type.STRING },
+                    better: { type: Type.STRING, description: 'Câu nói tự nhiên hơn bằng chữ Hán' },
+                    explanation: { type: Type.STRING, description: 'Giải thích bằng tiếng Việt' },
+                    pronunciationTip: { type: Type.STRING, description: 'Mẹo phát âm bằng tiếng Việt' },
                   },
                   required: ['hasMistake'],
                 },
                 suggestions: {
                   type: Type.ARRAY,
+                  description: '2-3 câu gợi ý cho học viên nói tiếp',
                   items: {
                     type: Type.OBJECT,
                     properties: {
-                      hanzi: { type: Type.STRING },
-                      pinyin: { type: Type.STRING },
-                      vietnamese: { type: Type.STRING },
+                      hanzi: { type: Type.STRING, description: 'Chữ Hán giản thể' },
+                      pinyin: { type: Type.STRING, description: 'Pinyin có dấu' },
+                      vietnamese: { type: Type.STRING, description: 'Nghĩa tiếng Việt' },
                     },
                     required: ['hanzi', 'pinyin', 'vietnamese'],
                   },
                 },
                 newWords: {
                   type: Type.ARRAY,
+                  description: 'Các từ mới đáng học trong lượt này',
                   items: {
                     type: Type.OBJECT,
                     properties: {
-                      hanzi: { type: Type.STRING },
-                      pinyin: { type: Type.STRING },
-                      vietnamese: { type: Type.STRING },
+                      hanzi: { type: Type.STRING, description: 'Chữ Hán giản thể của từ' },
+                      pinyin: { type: Type.STRING, description: 'Pinyin của từ' },
+                      vietnamese: { type: Type.STRING, description: 'Nghĩa tiếng Việt của từ' },
                     },
                     required: ['hanzi', 'pinyin', 'vietnamese'],
                   },
