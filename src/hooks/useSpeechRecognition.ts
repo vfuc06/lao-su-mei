@@ -8,7 +8,7 @@ interface IWindow extends Window {
 
 export interface UseSpeechRecognitionOptions {
   lang?: string;
-  onResult?: (finalTranscript: string) => void;
+  onResult?: (finalTranscript: string, spokenLang: string) => void;
   onError?: (errorMessage: string) => void;
   silenceTimeoutMs?: number;
 }
@@ -29,6 +29,12 @@ export function useSpeechRecognition({
   const silenceTimerRef = useRef<any>(null);
   const isManuallyStoppedRef = useRef(false);
   const finalTranscriptRef = useRef('');
+  const currentLangRef = useRef(lang);
+
+  // Cập nhật ref khi prop lang thay đổi
+  useEffect(() => {
+    currentLangRef.current = lang;
+  }, [lang]);
 
   // Kiểm tra hỗ trợ trình duyệt
   useEffect(() => {
@@ -61,12 +67,12 @@ export function useSpeechRecognition({
     // Gửi kết quả cuối cùng nếu có
     const currentFinal = finalTranscriptRef.current.trim();
     if (currentFinal && onResult) {
-      onResult(currentFinal);
+      onResult(currentFinal, currentLangRef.current);
       finalTranscriptRef.current = '';
     }
   }, [onResult]);
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback((overrideLang?: string) => {
     const win = window as IWindow;
     const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
 
@@ -77,6 +83,9 @@ export function useSpeechRecognition({
       onError?.(msg);
       return;
     }
+
+    const activeLang = overrideLang || currentLangRef.current || 'zh-CN';
+    currentLangRef.current = activeLang;
 
     setErrorMessage(null);
     setTranscript('');
@@ -95,7 +104,7 @@ export function useSpeechRecognition({
       }
 
       const recognition = new SpeechRecognition();
-      recognition.lang = lang;
+      recognition.lang = activeLang;
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
@@ -122,7 +131,7 @@ export function useSpeechRecognition({
         setTranscript(currentFinal);
         setInterimTranscript(interim);
 
-        // Phát hiện im lặng: Nếu người dùng đã nói được câu và im lặng sau silenceTimeoutMs thì tự gửi
+        // Phát hiện im lặng: Nếu người dùng đã nói được câu và im lặng sau silenceTimeoutMs thì tự dừng và gửi
         clearSilenceTimer();
         const fullSpoken = (currentFinal + ' ' + interim).trim();
         if (fullSpoken.length > 0) {
@@ -152,7 +161,7 @@ export function useSpeechRecognition({
         setIsListening(false);
         clearSilenceTimer();
         if (!isManuallyStoppedRef.current && finalTranscriptRef.current.trim()) {
-          onResult?.(finalTranscriptRef.current.trim());
+          onResult?.(finalTranscriptRef.current.trim(), currentLangRef.current);
           finalTranscriptRef.current = '';
         }
       };
@@ -166,7 +175,7 @@ export function useSpeechRecognition({
       onError?.(msg);
       setIsListening(false);
     }
-  }, [lang, silenceTimeoutMs, onResult, onError, stopListening]);
+  }, [silenceTimeoutMs, onResult, onError, stopListening]);
 
   return {
     isListening,
@@ -178,4 +187,3 @@ export function useSpeechRecognition({
     stopListening,
   };
 }
-

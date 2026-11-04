@@ -31,6 +31,9 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [lastFailedInput, setLastFailedInput] = useState<{ text: string; lang: 'zh' | 'vi' } | null>(null);
 
+  // Ngôn ngữ thu âm hiện tại của Micro: 'zh-CN' (mặc định) hoặc 'vi-VN' (khi cần hỏi bằng tiếng Việt)
+  const [speechLang, setSpeechLang] = useState<'zh-CN' | 'vi-VN'>('zh-CN');
+
   // Gợi ý phản hồi và từ mới tích luỹ trong buổi học
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [accumulatedWords, setAccumulatedWords] = useState<WordItem[]>([]);
@@ -72,7 +75,6 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
       const trimmed = userInputText.trim();
       const isInit = trimmed === '__INIT__';
 
-      // Nếu không phải là lượt mở đầu và người dùng nói rỗng thì bỏ qua
       if (!isInit && !trimmed) return;
 
       // Dừng âm thanh đang đọc (nếu có)
@@ -110,13 +112,14 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
           inputLang,
         });
 
-        // Tạo tin nhắn phản hồi của Lão Sư Mei
+        // Tạo tin nhắn phản hồi của Lão Sư Mei (có chứa phần đánh giá/sửa lỗi trước)
         const aiMsg: ChatMessage = {
           id: 'ai-' + Date.now(),
           role: 'ai',
           text: data.reply.hanzi,
           pinyin: data.reply.pinyin,
           vietnamese: data.reply.vietnamese,
+          evaluation: data.evaluation,
           feedback: data.feedback,
           suggestions: data.suggestions,
           newWords: data.newWords,
@@ -129,6 +132,12 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
         // Tích luỹ từ mới nếu có
         if (data.newWords && data.newWords.length > 0) {
           setAccumulatedWords((prev) => [...prev, ...data.newWords]);
+        }
+
+        // Nếu học viên vừa hỏi bằng tiếng Việt và Mei đã chỉ câu tiếng Trung tương ứng,
+        // tự động chuyển mic về tiếng Trung để học viên luyện đọc câu đó ngay
+        if (data.evaluation?.type === 'vietnamese_help') {
+          setSpeechLang('zh-CN');
         }
 
         scrollToBottom();
@@ -161,13 +170,14 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
     startListening,
     stopListening,
   } = useSpeechRecognition({
-    lang: 'zh-CN',
+    lang: speechLang,
     silenceTimeoutMs: 1500,
-    onResult: (spokenFinal) => {
+    onResult: (spokenFinal, spokenLang) => {
       if (spokenFinal.trim()) {
-        // Kiểm tra xem câu nói có chứa nhiều ký tự tiếng Việt không
-        const isVietnamese = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(spokenFinal);
-        handleSendMessage(spokenFinal, isVietnamese ? 'vi' : 'zh');
+        const isVi =
+          spokenLang === 'vi-VN' ||
+          /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(spokenFinal);
+        handleSendMessage(spokenFinal, isVi ? 'vi' : 'zh');
       }
     },
     onError: (msg) => {
@@ -188,9 +198,8 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
     if (isListening) {
       stopListening();
     } else {
-      // Dừng giọng đọc nếu AI đang nói
       stopSpeaking();
-      startListening();
+      startListening(speechLang);
     }
   };
 
@@ -225,7 +234,9 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
     setTextInputValue('');
     setIsTextInputOpen(false);
 
-    const isVietnamese = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(val);
+    const isVietnamese =
+      speechLang === 'vi-VN' ||
+      /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(val);
     handleSendMessage(val, isVietnamese ? 'vi' : 'zh');
   };
 
@@ -320,7 +331,7 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
         />
       </div>
 
-      {/* VÙNG MIC NÓI CHUYỆN TO Ở ĐÁY MÀN HÌNH */}
+      {/* VÙNG MIC NÓI CHUYỆN TO Ở ĐÁY MÀN HÌNH (CÓ NÚT CHUYỂN TIẾNG TRUNG / TIẾNG VIỆT) */}
       <div className="max-w-md mx-auto w-full">
         <MicButton
           isListening={isListening}
@@ -330,6 +341,8 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
           onToggleMic={handleToggleMic}
           onSwitchToText={() => setIsTextInputOpen(true)}
           isSupported={isSTTSupported}
+          speechLang={speechLang}
+          onSelectSpeechLang={setSpeechLang}
         />
       </div>
 
@@ -339,7 +352,7 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
           <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-4 animate-fade-in">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-stone-700">
-                ⌨️ Gõ chữ dự phòng (tiếng Trung hoặc tiếng Việt)
+                ⌨️ Gõ chữ ({speechLang === 'vi-VN' ? 'Tiếng Việt' : 'Tiếng Trung'})
               </span>
               <button
                 type="button"
@@ -356,7 +369,11 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
                 autoFocus
                 value={textInputValue}
                 onChange={(e) => setTextInputValue(e.target.value)}
-                placeholder="Ví dụ: 你好 hoặc 'cho tôi gọi cà phê'..."
+                placeholder={
+                  speechLang === 'vi-VN'
+                    ? 'Gõ tiếng Việt (ví dụ: "cho tôi hỏi giá bao nhiêu")...'
+                    : 'Gõ tiếng Trung (ví dụ: 你好, 我要一杯咖啡)...'
+                }
                 className="flex-1 p-3 rounded-2xl border border-stone-200 bg-stone-50 text-sm focus:outline-none focus:border-red-500"
               />
               <button

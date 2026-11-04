@@ -27,6 +27,17 @@ export interface Suggestion {
   vietnamese: string;
 }
 
+export type EvaluationType = 'correct' | 'needs_correction' | 'vietnamese_help' | 'initial_greeting';
+
+export interface Evaluation {
+  type: EvaluationType;
+  praiseOrCorrectionVi: string;
+  userSaidAnalysis?: string;
+  correctedHanzi?: string;
+  correctedPinyin?: string;
+  correctedVietnamese?: string;
+}
+
 export interface Feedback {
   hasMistake: boolean;
   userSaid?: string;
@@ -36,12 +47,13 @@ export interface Feedback {
 }
 
 export interface AIChatResponse {
+  evaluation?: Evaluation;
   reply: {
     hanzi: string;
     pinyin: string;
     vietnamese: string;
   };
-  feedback: Feedback;
+  feedback?: Feedback;
   suggestions: Suggestion[];
   newWords: WordItem[];
 }
@@ -52,6 +64,7 @@ export interface ChatMessage {
   text: string;
   pinyin?: string;
   vietnamese?: string;
+  evaluation?: Evaluation;
   feedback?: Feedback;
   suggestions?: Suggestion[];
   newWords?: WordItem[];
@@ -75,4 +88,3 @@ export interface ChatApiRequest {
   userInput: string;
   inputLang: 'zh' | 'vi';
 }
-
