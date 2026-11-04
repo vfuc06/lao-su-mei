@@ -142,9 +142,18 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
 
         scrollToBottom();
 
-        // Tự động đọc câu trả lời bằng tiếng Trung nếu được bật
-        if (settings.autoPlaySpeech && data.reply.hanzi) {
-          speak(data.reply.hanzi, settings.speechRate);
+        // Tự động phát âm câu tiếng Trung (nếu là dạy câu mới hoặc sửa lỗi thì đọc câu chuẩn đó)
+        if (settings.autoPlaySpeech) {
+          const textToSpeak =
+            data.evaluation?.type === 'vietnamese_help' && data.evaluation?.correctedHanzi
+              ? data.evaluation.correctedHanzi
+              : data.evaluation?.type === 'needs_correction' && data.evaluation?.correctedHanzi
+              ? data.evaluation.correctedHanzi
+              : data.reply.hanzi;
+
+          if (textToSpeak) {
+            speak(textToSpeak, settings.speechRate);
+          }
         }
       } catch (err: any) {
         console.error('Lỗi hội thoại:', err);

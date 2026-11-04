@@ -148,15 +148,16 @@ Chỉ trả về JSON theo đúng schema.
       promptText += `BƯỚC 1 - ĐÁNH GIÁ (trong đối tượng "evaluation"):\n`;
 
       if (inputLang === 'vi') {
-        promptText += `- Học viên đang nói tiếng Việt: "${userInput.trim()}".\n`;
+        promptText += `- Học viên đang hỏi hoặc nói bằng tiếng Việt: "${userInput.trim()}".\n`;
         promptText += `- Đặt evaluation.type = "vietnamese_help".\n`;
-        promptText += `- Dạy học viên câu tiếng Trung tương ứng:\n`;
-        promptText += `  + "correctedHanzi": Câu tiếng Trung chuẩn bằng chữ Hán giản thể.\n`;
-        promptText += `  + "correctedPinyin": Pinyin có dấu thanh chuẩn.\n`;
-        promptText += `  + "correctedVietnamese": Nghĩa tiếng Việt.\n`;
-        promptText += `  + "praiseOrCorrectionVi": Giải thích ngắn gọn cách nói câu này bằng tiếng Việt.\n\n`;
+        promptText += `- DẠY HỌC VIÊN CÂU TIẾNG TRUNG TƯƠNG ỨNG MỘT CÁCH TRỰC DIỆN:\n`;
+        promptText += `  + "correctedHanzi": BẮT BUỘC là câu tiếng Trung chuẩn xác tương ứng (chữ Hán giản thể). Ví dụ nếu học viên hỏi "tôi đẹp trai thì nói ntn", câu chuẩn là "我很帅".\n`;
+        promptText += `  + "correctedPinyin": Pinyin có dấu thanh chuẩn (ví dụ "Wǒ hěn shuài").\n`;
+        promptText += `  + "correctedVietnamese": Nghĩa tiếng Việt của câu tiếng Trung đó (ví dụ "Tôi rất đẹp trai").\n`;
+        promptText += `  + "praiseOrCorrectionVi": Giải thích rõ ràng, thân thiện bằng tiếng Việt cách dùng từ và cách diễn đạt câu này trong tiếng Trung.\n\n`;
         promptText += `BƯỚC 2 - PHẢN HỒI (trong đối tượng "reply"):\n`;
-        promptText += `- Trong "reply", Lão Sư Mei hãy mời học viên thử bấm mic tiếng Trung và đọc lại câu tiếng Trung mẫu vừa được dạy.\n`;
+        promptText += `- Đặt CHÍNH CÂU TIẾNG TRUNG VỪA DẠY vào "reply.hanzi" (chữ Hán giản thể), pinyin vào "reply.pinyin", và nghĩa vào "reply.vietnamese". Tuyệt đối không trả lời câu chung chung lạc đề!\n`;
+        promptText += `- Đưa câu này và các biến thể vào "suggestions" để học viên bấm vào nghe và nói theo.\n`;
       } else {
         promptText += `- Học viên vừa nói câu tiếng Trung: "${userInput.trim()}".\n`;
         promptText += `- Hãy nhận xét trực tiếp vào câu "${userInput.trim()}":\n`;

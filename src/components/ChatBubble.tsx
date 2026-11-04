@@ -156,53 +156,55 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
           )}
 
           {/* BƯỚC 2: CÂU TRÒ CHUYỆN TIẾP THEO CỦA AI */}
-          <div>
-            {evaluation?.type === 'needs_correction' && (
-              <div className="text-[11px] font-bold text-stone-500 uppercase tracking-wider mb-1">
-                💬 Cuộc trò chuyện tiếp tục:
-              </div>
-            )}
+          {(!evaluation || evaluation.type !== 'vietnamese_help' || (message.text && message.text !== evaluation.correctedHanzi)) && (
+            <div>
+              {evaluation?.type === 'needs_correction' && (
+                <div className="text-[11px] font-bold text-stone-500 uppercase tracking-wider mb-1">
+                  💬 Cuộc trò chuyện tiếp tục:
+                </div>
+              )}
 
-            {/* Chữ Hán to rõ */}
-            <div className="hanzi-text text-2xl sm:text-3xl font-bold text-stone-900 leading-snug tracking-wide mb-1">
-              {message.text}
+              {/* Chữ Hán to rõ */}
+              <div className="hanzi-text text-2xl sm:text-3xl font-bold text-stone-900 leading-snug tracking-wide mb-1">
+                {message.text}
+              </div>
+
+              {/* Pinyin có dấu thanh */}
+              {settings.showPinyin && message.pinyin && (
+                <div className="text-sm sm:text-base font-medium text-amber-700 mb-1">
+                  {message.pinyin}
+                </div>
+              )}
+
+              {/* Nghĩa tiếng Việt */}
+              {settings.showVietnamese && message.vietnamese && (
+                <div className="text-xs sm:text-sm text-stone-600 italic mb-2">
+                  "{message.vietnamese}"
+                </div>
+              )}
+
+              {/* Nút nghe lại & nghe chậm */}
+              <div className="flex items-center gap-2 pt-1 border-t border-stone-100 mt-2">
+                <button
+                  type="button"
+                  onClick={() => onSpeak(message.text, 1.0)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-medium transition-colors active:scale-95"
+                >
+                  <Volume2 className="w-3.5 h-3.5 text-stone-600" />
+                  <span>Nghe lại</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onSpeak(message.text, 0.75)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-medium transition-colors active:scale-95"
+                >
+                  <Snail className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Nghe chậm</span>
+                </button>
+              </div>
             </div>
-
-            {/* Pinyin có dấu thanh */}
-            {settings.showPinyin && message.pinyin && (
-              <div className="text-sm sm:text-base font-medium text-amber-700 mb-1">
-                {message.pinyin}
-              </div>
-            )}
-
-            {/* Nghĩa tiếng Việt */}
-            {settings.showVietnamese && message.vietnamese && (
-              <div className="text-xs sm:text-sm text-stone-600 italic mb-2">
-                "{message.vietnamese}"
-              </div>
-            )}
-
-            {/* Nút nghe lại & nghe chậm */}
-            <div className="flex items-center gap-2 pt-1 border-t border-stone-100 mt-2">
-              <button
-                type="button"
-                onClick={() => onSpeak(message.text, 1.0)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-medium transition-colors active:scale-95"
-              >
-                <Volume2 className="w-3.5 h-3.5 text-stone-600" />
-                <span>Nghe lại</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onSpeak(message.text, 0.75)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-medium transition-colors active:scale-95"
-              >
-                <Snail className="w-3.5 h-3.5 text-amber-600" />
-                <span>Nghe chậm</span>
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
