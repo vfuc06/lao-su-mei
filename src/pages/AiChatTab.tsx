@@ -184,3 +184,4 @@ export const AiChatTab: React.FC<AiChatTabProps> = ({
     </div>
   );
 };
+

@@ -68,3 +68,4 @@ describe('SM-2 Spaced Repetition Algorithm', () => {
     expect(labels.easy).toBe('3 ngày');
   });
 });
+

@@ -72,3 +72,4 @@ export function getTipForSyllable(syllable: string): string {
   }
   return '💡 Mẹo: Nghe lại phát âm mẫu ở tốc độ chậm (nút 🐢) và chú ý mở khẩu hình miệng to, rõ ràng hơn.';
 }
+

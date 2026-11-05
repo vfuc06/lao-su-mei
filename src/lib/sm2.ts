@@ -109,3 +109,4 @@ export function getEstimatedIntervals(progress: SM2Progress | null | undefined):
 
   return { again, hard, good, easy };
 }
+

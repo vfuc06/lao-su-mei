@@ -44,3 +44,4 @@ describe('Thuật toán chấm điểm phát âm tiếng Trung (scoring.ts)', ()
     expect(res.passed).toBe(false);
   });
 });
+

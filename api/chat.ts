@@ -55,19 +55,21 @@ export default async function handler(req: any, res: any) {
 
   // 2. Xác thực người dùng qua Supabase Token & Kiểm tra Quota
   const authHeader = req.headers['authorization'];
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://lamhrbavfyhffeihyxdz.supabase.co';
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f8W4S8FpFM2YZcA8zeryjQ_I_hC9JsI';
   const dailyQuota = parseInt(process.env.DAILY_AI_QUOTA || '80', 10);
 
   let verifiedUserId: string | null = null;
+  let userToken: string | null = null;
 
   if (authHeader && authHeader.startsWith('Bearer ') && supabaseUrl) {
-    const token = authHeader.replace('Bearer ', '').trim();
+    userToken = authHeader.replace('Bearer ', '').trim();
     try {
       const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'apikey': serviceKey || process.env.VITE_SUPABASE_ANON_KEY || '',
+          'Authorization': `Bearer ${userToken}`,
+          'apikey': serviceKey || anonKey,
         },
       });
       if (userRes.ok) {
@@ -88,16 +90,15 @@ export default async function handler(req: any, res: any) {
 
   // Kiểm tra hạn mức ngày (Daily Quota)
   const todayVn = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
-  if (serviceKey && supabaseUrl) {
+  if (supabaseUrl && (serviceKey || userToken)) {
     try {
+      const quotaHeaders: Record<string, string> = {
+        'apikey': serviceKey || anonKey,
+        'Authorization': serviceKey ? `Bearer ${serviceKey}` : `Bearer ${userToken}`,
+      };
       const actRes = await fetch(
         `${supabaseUrl}/rest/v1/daily_activity?user_id=eq.${verifiedUserId}&day=eq.${todayVn}&select=ai_turns`,
-        {
-          headers: {
-            'apikey': serviceKey,
-            'Authorization': `Bearer ${serviceKey}`,
-          },
-        }
+        { headers: quotaHeaders }
       );
       if (actRes.ok) {
         const rows = await actRes.json();
@@ -365,15 +366,16 @@ Hãy phân tích và trả về JSON:
     }
 
     // Tăng daily_activity.ai_turns cho người dùng trong Supabase
-    if (verifiedUserId && serviceKey && supabaseUrl) {
+    if (verifiedUserId && supabaseUrl && (serviceKey || userToken)) {
+      const incHeaders: Record<string, string> = {
+        'apikey': serviceKey || anonKey,
+        'Authorization': serviceKey ? `Bearer ${serviceKey}` : `Bearer ${userToken}`,
+        'Content-Type': 'application/json',
+      };
       try {
         await fetch(`${supabaseUrl}/rest/v1/rpc/increment_daily_activity`, {
           method: 'POST',
-          headers: {
-            'apikey': serviceKey,
-            'Authorization': `Bearer ${serviceKey}`,
-            'Content-Type': 'application/json',
-          },
+          headers: incHeaders,
           body: JSON.stringify({
             p_user_id: verifiedUserId,
             p_day: todayVn,
@@ -385,9 +387,7 @@ Hãy phân tích và trả về JSON:
         fetch(`${supabaseUrl}/rest/v1/daily_activity`, {
           method: 'POST',
           headers: {
-            'apikey': serviceKey,
-            'Authorization': `Bearer ${serviceKey}`,
-            'Content-Type': 'application/json',
+            ...incHeaders,
             'Prefer': 'resolution=merge-duplicates',
           },
           body: JSON.stringify({

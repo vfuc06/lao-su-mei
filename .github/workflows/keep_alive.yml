@@ -17,3 +17,4 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f8W4S8FpFM2YZcA8zeryjQ_I_hC9JsI' }}" \
             > /dev/null
           echo "Supabase database pinged successfully!"
+

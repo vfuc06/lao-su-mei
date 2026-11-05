@@ -47,3 +47,4 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
     </nav>
   );
 };
+
