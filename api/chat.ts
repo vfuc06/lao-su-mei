@@ -122,8 +122,8 @@ Chỉ trả về JSON theo đúng schema.
   try {
     const ai = new GoogleGenAI({ apiKey });
 
-    // Cắt giảm lịch sử hội thoại: chỉ giữ 10 lượt gần nhất
-    const recentHistory = Array.isArray(history) ? history.slice(-10) : [];
+    // Cắt giảm lịch sử hội thoại: chỉ giữ 6 lượt gần nhất để xử lý siêu tốc
+    const recentHistory = Array.isArray(history) ? history.slice(-6) : [];
     
     let promptText = '';
     if (recentHistory.length > 0) {
@@ -176,13 +176,11 @@ Chỉ trả về JSON theo đúng schema.
       }
     }
 
-    // Danh sách model thế hệ mới ưu tiên
+    // Danh sách model ưu tiên tốc độ cao nhất (< 2s)
     const candidateModels = [
       process.env.GEMINI_MODEL,
+      'gemini-3.1-flash-lite',
       'gemini-3.5-flash-lite',
-      'gemini-flash-latest',
-      'gemini-3.8-flash',
-      'gemini-3.5-flash',
     ].filter(Boolean) as string[];
 
     let lastError: any = null;
@@ -190,12 +188,13 @@ Chỉ trả về JSON theo đúng schema.
 
     for (const modelName of candidateModels) {
       try {
-        const response = await ai.models.generateContent({
+        const callPromise = ai.models.generateContent({
           model: modelName,
           contents: promptText,
           config: {
             systemInstruction,
             responseMimeType: 'application/json',
+            maxOutputTokens: 380,
             responseSchema: {
               type: Type.OBJECT,
               properties: {
@@ -268,13 +267,20 @@ Chỉ trả về JSON theo đúng schema.
           },
         });
 
+        // Giới hạn thời gian mỗi model tối đa 7.5 giây, nếu nghẽn mạng thì chuyển ngay sang model dự phòng
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout quá 7.5s với model ${modelName}`)), 7500)
+        );
+
+        const response = await Promise.race([callPromise, timeoutPromise]);
+
         if (response.text) {
           responseText = response.text;
           break; // Gọi thành công
         }
       } catch (callErr: any) {
         lastError = callErr;
-        console.warn(`[Model ${modelName} failed, trying next]:`, callErr?.message);
+        console.warn(`[Model ${modelName} failed/timeout, trying next]:`, callErr?.message);
       }
     }
 

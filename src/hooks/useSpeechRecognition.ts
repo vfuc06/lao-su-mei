@@ -17,7 +17,7 @@ export function useSpeechRecognition({
   lang = 'zh-CN',
   onResult,
   onError,
-  silenceTimeoutMs = 1500,
+  silenceTimeoutMs = 1200,
 }: UseSpeechRecognitionOptions = {}) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -27,6 +27,7 @@ export function useSpeechRecognition({
 
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<any>(null);
+  const maxDurationTimerRef = useRef<any>(null);
   const isManuallyStoppedRef = useRef(false);
   const finalTranscriptRef = useRef('');
   const lastInterimRef = useRef('');
@@ -46,6 +47,17 @@ export function useSpeechRecognition({
       setIsSupported(false);
     }
   }, []);
+
+  const clearTimers = () => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (maxDurationTimerRef.current) {
+      clearTimeout(maxDurationTimerRef.current);
+      maxDurationTimerRef.current = null;
+    }
+  };
 
   const clearSilenceTimer = () => {
     if (silenceTimerRef.current) {
@@ -83,7 +95,7 @@ export function useSpeechRecognition({
 
   const stopListening = useCallback(() => {
     isManuallyStoppedRef.current = true;
-    clearSilenceTimer();
+    clearTimers();
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -118,7 +130,12 @@ export function useSpeechRecognition({
       lastInterimRef.current = '';
       hasSentRef.current = false;
       isManuallyStoppedRef.current = false;
-      clearSilenceTimer();
+      clearTimers();
+
+      // Giới hạn thời gian thu âm tối đa 8.5 giây để tránh mic bị treo ở môi trường ồn
+      maxDurationTimerRef.current = setTimeout(() => {
+        stopListening();
+      }, 8500);
 
       try {
         if (recognitionRef.current) {

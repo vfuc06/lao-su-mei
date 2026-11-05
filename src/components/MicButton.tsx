@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mic, MicOff, Loader2, Keyboard, Languages } from 'lucide-react';
+import { Mic, MicOff, Loader2, Keyboard, Languages, Square } from 'lucide-react';
 
 interface MicButtonProps {
   isListening: boolean;
@@ -94,14 +94,19 @@ export const MicButton: React.FC<MicButtonProps> = ({
       )}
 
       {/* 4. NÚT MIC LỚN Ở GIỮA */}
-      <div className="relative flex items-center justify-center my-1">
+      <div className="relative flex items-center justify-center my-2">
         {/* Vòng hào quang nhấp nháy khi đang ghi âm */}
         {isListening && (
-          <div
-            className={`absolute w-24 h-24 rounded-full opacity-70 animate-mic-pulse ${
-              isVietnameseMode ? 'bg-amber-400' : 'bg-red-400'
-            }`}
-          />
+          <>
+            <div
+              className={`absolute w-24 h-24 rounded-full opacity-70 animate-mic-pulse ${
+                isVietnameseMode ? 'bg-amber-400' : 'bg-red-400'
+              }`}
+            />
+            <div className="absolute -top-7 px-3 py-0.5 rounded-full bg-stone-900/90 text-white text-[11px] font-bold shadow-md animate-bounce whitespace-nowrap z-20">
+              ⏹️ Nói xong bấm để gửi ngay
+            </div>
+          </>
         )}
 
         <button
@@ -127,8 +132,13 @@ export const MicButton: React.FC<MicButtonProps> = ({
             <Loader2 className="w-8 h-8 animate-spin" />
           ) : !isSupported ? (
             <MicOff className="w-8 h-8" />
+          ) : isListening ? (
+            <div className="flex flex-col items-center justify-center">
+              <Square className="w-6 h-6 fill-current mb-0.5" />
+              <span className="text-[10px] font-black uppercase tracking-wider">Gửi ngay</span>
+            </div>
           ) : (
-            <Mic className={`w-9 h-9 ${isListening ? 'animate-bounce' : ''}`} />
+            <Mic className="w-9 h-9" />
           )}
         </button>
       </div>
@@ -139,7 +149,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
           {!isSupported
             ? 'Trình duyệt không hỗ trợ micro trực tiếp'
             : isListening
-            ? 'Đang nghe... Nói xong im lặng 1.5s hoặc bấm lại để gửi'
+            ? 'Đang nghe... Nói xong bấm nút để gửi ngay (hoặc im lặng 1.2s)'
             : isLoading
             ? 'Đang kiểm tra câu nói...'
             : isVietnameseMode
