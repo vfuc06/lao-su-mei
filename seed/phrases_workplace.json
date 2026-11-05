@@ -1,0 +1,145 @@
+[
+  {
+    "slug": "meeting_wp",
+    "emoji": "📅",
+    "titleVi": "Họp hành & Thảo luận công việc",
+    "sort": 1,
+    "pairs": [
+      {
+        "q": "今天的会议主要讨论什么？",
+        "a": "主要讨论下个季度的产品推广方案。",
+        "note": "Hỏi nội dung trọng tâm cuộc họp"
+      },
+      {
+        "q": "各位对这个方案有什么意见吗？",
+        "a": "我觉得整体不错，但是预算可能需要调整。",
+        "note": "Xin ý kiến đóng góp"
+      },
+      {
+        "q": "请问会议几点开始？",
+        "a": "下午两点半在三号会议室准时开始。",
+        "note": "Hỏi giờ và phòng họp"
+      },
+      {
+        "q": "这个项目的截止日期是哪天？",
+        "a": "预计在下周五之前必须交付初稿。",
+        "note": "Hỏi hạn chót hoàn thành (deadline)"
+      }
+    ]
+  },
+  {
+    "slug": "report_wp",
+    "emoji": "📊",
+    "titleVi": "Báo cáo tiến độ với sếp (dùng 您)",
+    "sort": 2,
+    "pairs": [
+      {
+        "q": "李总，这是本周的工作汇报，请您过目。",
+        "a": "好的，放我桌上吧，我下午看完给你反馈。",
+        "note": "Trình báo cáo lịch sự với sếp"
+      },
+      {
+        "q": "项目进展顺利吗？有没有遇到困难？",
+        "a": "目前按计划进行，客户那边已经确认了需求。",
+        "note": "Báo cáo tình hình thuận lợi"
+      },
+      {
+        "q": "请问您对这份报告有什么修改意见吗？",
+        "a": "第三部分的图表数据需要再核实一下。",
+        "note": "Hỏi ý kiến chỉnh sửa của cấp trên"
+      }
+    ]
+  },
+  {
+    "slug": "leave_wp",
+    "emoji": "🙋",
+    "titleVi": "Xin nghỉ phép / Đi muộn / Đổi ca",
+    "sort": 3,
+    "pairs": [
+      {
+        "q": "张经理，我明天家里有急事，想请一天事假。",
+        "a": "好的，请在系统里提交一下请假单。",
+        "note": "Xin phép nghỉ 1 ngày vì việc riêng"
+      },
+      {
+        "q": "路上堵车很严重，我可能会迟到十五分钟。",
+        "a": "收到，路上注意安全，到了先打卡。",
+        "note": "Báo trước khi đi trễ do kẹt xe"
+      },
+      {
+        "q": "请问我可以和周师傅换一下周末的班吗？",
+        "a": "你们两位沟通好并且签个字就可以。",
+        "note": "Xin đổi ca trực"
+      }
+    ]
+  },
+  {
+    "slug": "phone_wp",
+    "emoji": "📞",
+    "titleVi": "Nghe / gọi điện thoại công ty",
+    "sort": 4,
+    "pairs": [
+      {
+        "q": "您好，这里是华星科技，请问有什么可以帮您？",
+        "a": "您好，请帮我转接一下销售部王经理。",
+        "note": "Chào chuẩn mực khi nhấc máy bàn công ty"
+      },
+      {
+        "q": "王经理现在在开会，需要我帮您留言吗？",
+        "a": "好的，请让他开完会给我回个电话。",
+        "note": "Báo bận và đề nghị ghi lời nhắn"
+      },
+      {
+        "q": "请问您怎么称呼？您的电话号码是多少？",
+        "a": "我姓陈，电话是13800138000。",
+        "note": "Hỏi tên và số điện thoại người gọi"
+      }
+    ]
+  },
+  {
+    "slug": "colleague_wp",
+    "emoji": "🤝",
+    "titleVi": "Gặp đồng nghiệp mới & Giới thiệu",
+    "sort": 5,
+    "pairs": [
+      {
+        "q": "大家好，我是今天新入职的阮文明。",
+        "a": "欢迎加入我们团队！以后多多关照。",
+        "note": "Chào hỏi đồng nghiệp ngày đầu nhận việc"
+      },
+      {
+        "q": "中午要不要一起去楼下吃快餐？",
+        "a": "太好了，我正好不知道附近有什么好吃的。",
+        "note": "Rủ đồng nghiệp đi ăn trưa"
+      },
+      {
+        "q": "这个打印机怎么用？能教我一下吗？",
+        "a": "没问题，先按这个绿色的启动键。",
+        "note": "Nhờ vả đồng nghiệp việc nhỏ"
+      }
+    ]
+  },
+  {
+    "slug": "partner_wp",
+    "emoji": "🧾",
+    "titleVi": "Làm việc với đối tác & Khách hàng",
+    "sort": 6,
+    "pairs": [
+      {
+        "q": "王总，很荣幸能与贵公司合作。",
+        "a": "我们也非常期待这次的双赢合作。",
+        "note": "Chào mừng đối tác làm ăn"
+      },
+      {
+        "q": "请问最快什么时候可以交货？",
+        "a": "合同签订并收到预付款后十五天内发货。",
+        "note": "Thỏa thuận thời gian giao hàng"
+      },
+      {
+        "q": "我们希望能在价格上再给一点优惠。",
+        "a": "如果订购数量超过一千件，我们可以给九折。",
+        "note": "Đàm phán chiết khấu số lượng lớn"
+      }
+    ]
+  }
+]

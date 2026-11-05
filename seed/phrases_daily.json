@@ -1,0 +1,256 @@
+[
+  {
+    "slug": "greeting",
+    "emoji": "👋",
+    "titleVi": "Chào hỏi & Xã giao cơ bản",
+    "sort": 1,
+    "pairs": [
+      {
+        "q": "你好！",
+        "a": "你好！很高兴见到你。",
+        "note": "Chào hỏi cơ bản nhất trong tiếng Trung"
+      },
+      {
+        "q": "你好吗？",
+        "a": "我很好，你呢？",
+        "note": "Hỏi thăm sức khỏe quen thuộc"
+      },
+      {
+        "q": "早安！今天怎么样？",
+        "a": "早上好！今天心情很不错。",
+        "note": "Chào buổi sáng thân mật"
+      },
+      {
+        "q": "明天见！",
+        "a": "好的，明天见！路上小心。",
+        "note": "Hẹn gặp lại ngày mai"
+      },
+      {
+        "q": "最近忙吗？",
+        "a": "还可以，不算太忙。",
+        "note": "Cách hỏi thăm tiến độ cuộc sống"
+      },
+      {
+        "q": "你吃了吗？",
+        "a": "我刚吃饱，你吃了没有？",
+        "note": "Câu chào hỏi truyền thống của người Trung"
+      }
+    ]
+  },
+  {
+    "slug": "self_intro",
+    "emoji": "🙋",
+    "titleVi": "Giới thiệu bản thân & Quê quán",
+    "sort": 2,
+    "pairs": [
+      {
+        "q": "你叫什么名字？",
+        "a": "我叫小明，你呢？",
+        "note": "Câu hỏi tên cơ bản"
+      },
+      {
+        "q": "你是哪国人？",
+        "a": "我是越南人，来自河内。",
+        "note": "Hỏi quốc tịch và quê quán"
+      },
+      {
+        "q": "你今年多大了？",
+        "a": "我今年二十五岁。",
+        "note": "Hỏi tuổi người đồng trang lứa"
+      },
+      {
+        "q": "你在做什么工作？",
+        "a": "我是程序员，在一家科技公司上班。",
+        "note": "Hỏi nghề nghiệp"
+      },
+      {
+        "q": "你学中文多久了？",
+        "a": "我刚学了半年左右。",
+        "note": "Nói về thời gian học tiếng"
+      },
+      {
+        "q": "你家有几口人？",
+        "a": "我家有四口人：爸妈、妹妹和我。",
+        "note": "Giới thiệu về gia đình"
+      }
+    ]
+  },
+  {
+    "slug": "dining",
+    "emoji": "🍜",
+    "titleVi": "Ăn uống & Gọi món ở nhà hàng",
+    "sort": 3,
+    "pairs": [
+      {
+        "q": "服务员，请问有菜单吗？",
+        "a": "有的，这是菜单，请问几位？",
+        "note": "Gọi phục vụ và xin thực đơn"
+      },
+      {
+        "q": "这个菜辣不辣？",
+        "a": "这个菜有点儿辣，微辣可以吗？",
+        "note": "Hỏi độ cay của món ăn"
+      },
+      {
+        "q": "我要一杯冰奶茶，少糖。",
+        "a": "好的，一杯冰奶茶，七分甜，请稍等。",
+        "note": "Tùy chỉnh độ ngọt/đá khi gọi nước"
+      },
+      {
+        "q": "这里的招牌菜是什么？",
+        "a": "我们的烤鸭和麻婆豆腐很有名。",
+        "note": "Hỏi món đặc sản, bán chạy"
+      },
+      {
+        "q": "服务员，买单！一共多少钱？",
+        "a": "一共一百二十块钱，微信还是支付宝？",
+        "note": "Kêu tính tiền và hỏi phương thức trả"
+      },
+      {
+        "q": "可以帮我打包吗？",
+        "a": "没问题，请稍等我拿打包盒。",
+        "note": "Xin đóng gói mang về"
+      }
+    ]
+  },
+  {
+    "slug": "shopping",
+    "emoji": "🛒",
+    "titleVi": "Mua sắm & Trả giá",
+    "sort": 4,
+    "pairs": [
+      {
+        "q": "这个多少钱一件？",
+        "a": "这个八十块钱一件。",
+        "note": "Hỏi giá tiền đồ vật"
+      },
+      {
+        "q": "太贵了，可以便宜一点儿吗？",
+        "a": "如果你买两件，给你打八折。",
+        "note": "Câu mặc cả thông dụng nhất"
+      },
+      {
+        "q": "请问有大一号的吗？",
+        "a": "有的，请稍等我进库房拿给你。",
+        "note": "Hỏi đổi kích cỡ (size)"
+      },
+      {
+        "q": "我可以试穿一下吗？",
+        "a": "可以的，试衣间在那边。",
+        "note": "Hỏi thử đồ quần áo"
+      },
+      {
+        "q": "这个能刷信用卡吗？",
+        "a": "可以刷卡，也可以扫码支付。",
+        "note": "Hỏi thanh toán quẹt thẻ"
+      }
+    ]
+  },
+  {
+    "slug": "taxi_direction",
+    "emoji": "🚕",
+    "titleVi": "Đi taxi, hỏi đường & Đi lại",
+    "sort": 5,
+    "pairs": [
+      {
+        "q": "师傅，去机场要多少钱？",
+        "a": "打表大概六十块钱左右。",
+        "note": "Hỏi tài xế taxi giá tiền đi xe"
+      },
+      {
+        "q": "请问去地铁站怎么走？",
+        "a": "一直往前走，在第二个路口向右拐。",
+        "note": "Chỉ dẫn đường đi bộ"
+      },
+      {
+        "q": "师傅，请在前面的路口停一下。",
+        "a": "好的，请带好随身物品。",
+        "note": "Bảo tài xế dừng xe trả khách"
+      },
+      {
+        "q": "到火车站还要多长时间？",
+        "a": "大概二十分钟，前面稍微有点堵车。",
+        "note": "Hỏi thời gian di chuyển"
+      }
+    ]
+  },
+  {
+    "slug": "hotel",
+    "emoji": "🏨",
+    "titleVi": "Khách sạn & Nhận phòng",
+    "sort": 6,
+    "pairs": [
+      {
+        "q": "你好，我预订了一间大床房。",
+        "a": "请出示您的护照，我帮您查一下。",
+        "note": "Làm thủ tục check-in phòng đã đặt"
+      },
+      {
+        "q": "请问无线网密码是多少？",
+        "a": "密码在房卡背面，全小写字母。",
+        "note": "Hỏi mật khẩu Wifi"
+      },
+      {
+        "q": "早餐是几点到几点？",
+        "a": "早餐在二楼餐厅，早上七点到九点半。",
+        "note": "Hỏi giờ và địa điểm ăn sáng"
+      },
+      {
+        "q": "我可以把行李寄存在这里吗？",
+        "a": "当然可以，退房后免费寄存到下午六点。",
+        "note": "Gửi nhờ hành lý ở sảnh"
+      }
+    ]
+  },
+  {
+    "slug": "health",
+    "emoji": "🏥",
+    "titleVi": "Sức khỏe & Khám bệnh / Mua thuốc",
+    "sort": 7,
+    "pairs": [
+      {
+        "q": "你哪里不舒服？",
+        "a": "我头疼，还有点儿发烧。",
+        "note": "Bác sĩ hoặc người khác hỏi thăm triệu chứng"
+      },
+      {
+        "q": "这个药一天吃几次？",
+        "a": "一天吃三次，每次饭后吃两片。",
+        "note": "Hỏi liều lượng dùng thuốc"
+      },
+      {
+        "q": "请问附近有医院吗？",
+        "a": "出门向左走两百米就有一家人民医院。",
+        "note": "Hỏi vị trí bệnh viện gần nhất"
+      }
+    ]
+  },
+  {
+    "slug": "politeness",
+    "emoji": "🙏",
+    "titleVi": "Cảm ơn, xin lỗi & Từ chối lịch sự",
+    "sort": 8,
+    "pairs": [
+      {
+        "q": "谢谢你的帮忙！",
+        "a": "不客气，不用谢！举手之劳。",
+        "note": "Cảm ơn và đáp lại lịch thiệp"
+      },
+      {
+        "q": "对不起，我来晚了。",
+        "a": "没关系，我也刚到不久。",
+        "note": "Xin lỗi khi đi trễ"
+      },
+      {
+        "q": "今晚一起去唱歌好吗？",
+        "a": "不好意思，我今晚有点急事，下次吧。",
+        "note": "Từ chối lời mời khéo léo"
+      },
+      {
+        "q": "打扰一下，请问洗手间在哪儿？",
+        "a": "顺着走廊直走，左手边就是。",
+        "note": "Hỏi đường lịch sự kèm câu mở đầu"
+      }
+    ]
+  }
+]
