@@ -1,0 +1,19 @@
+name: Keep Supabase Database Active
+
+on:
+  schedule:
+    # Chạy mỗi 3 ngày một lần lúc 00:00 UTC để tránh Supabase free tier bị tự động pause
+    - cron: '0 0 */3 * *'
+  workflow_dispatch: # Cho phép bấm chạy thủ công từ GitHub Actions tab
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST Endpoint
+        run: |
+          curl -s -f "https://lamhrbavfyhffeihyxdz.supabase.co/rest/v1/phrase_groups?select=id&limit=1" \
+            -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f8W4S8FpFM2YZcA8zeryjQ_I_hC9JsI' }}" \
+            -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f8W4S8FpFM2YZcA8zeryjQ_I_hC9JsI' }}" \
+            > /dev/null
+          echo "Supabase database pinged successfully!"

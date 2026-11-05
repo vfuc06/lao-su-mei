@@ -1,15 +1,37 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Scenario, HSKLevel, UserSettings, ChatMessage, WordItem, Suggestion } from '../types';
+import {
+  Scenario,
+  HSKLevel,
+  UserSettings,
+  ChatMessage,
+  WordItem,
+  Suggestion,
+  ZhLine,
+  CorrectionChunk,
+  ScoreOutput,
+} from '../types';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { Header } from '../components/Header';
 import { ChatBubble } from '../components/ChatBubble';
 import { SuggestionsBar } from '../components/SuggestionsBar';
 import { MicButton } from '../components/MicButton';
 import { SettingsSheet } from '../components/SettingsSheet';
 import { SummaryModal } from '../components/SummaryModal';
+import { CorrectionCard } from '../components/CorrectionCard';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
+import { evaluatePronunciation } from '../lib/scoring';
 import { sendChatMessage } from '../lib/api';
-import { AlertCircle, RefreshCw, X, Send } from 'lucide-react';
+import {
+  AlertCircle,
+  RefreshCw,
+  X,
+  Send,
+  Lightbulb,
+  Sparkles,
+  HelpCircle,
+} from 'lucide-react';
 
 interface ConversationScreenProps {
   scenario: Scenario;
@@ -19,6 +41,17 @@ interface ConversationScreenProps {
   onBackToHome: () => void;
 }
 
+interface ActiveCorrectionGate {
+  userSaid: string;
+  explanationVi: string;
+  directionVi?: string;
+  correctSentence: ZhLine;
+  chunks: CorrectionChunk[];
+  attempts: number;
+  lastScore: ScoreOutput | null;
+  heardText: string;
+}
+
 export const ConversationScreen: React.FC<ConversationScreenProps> = ({
   scenario,
   level,
@@ -26,17 +59,32 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
   onUpdateSettings,
   onBackToHome,
 }) => {
+  const { user } = useAuth();
+
+  // Danh sách tin nhắn hội thoại
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [lastFailedInput, setLastFailedInput] = useState<{ text: string; lang: 'zh' | 'vi' } | null>(null);
 
-  // Ngôn ngữ thu âm hiện tại của Micro: 'zh-CN' (mặc định) hoặc 'vi-VN' (khi cần hỏi bằng tiếng Việt)
+  // Ngôn ngữ thu âm hiện tại của Micro: 'zh-CN' (mặc định) hoặc 'vi-VN'
   const [speechLang, setSpeechLang] = useState<'zh-CN' | 'vi-VN'>('zh-CN');
 
-  // Gợi ý phản hồi và từ mới tích luỹ trong buổi học
+  // Gợi ý phản hồi và từ mới tích luỹ
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [accumulatedWords, setAccumulatedWords] = useState<WordItem[]>([]);
+
+  // TRẠNG THÁI GIA SƯ NGHIÊM: Kẹt ở Thẻ Sửa Lỗi cho đến khi đạt điểm ≥ 80%
+  const [correctionGate, setCorrectionGate] = useState<ActiveCorrectionGate | null>(null);
+  const [isResumingAfterCorrection, setIsResumingAfterCorrection] = useState(false);
+
+  // Gợi ý thông minh khi bí từ (3 cấp)
+  const [hintLevel, setHintLevel] = useState<number>(0);
+  const [smartHintText, setSmartHintText] = useState<string | null>(null);
+  const [isLoadingHint, setIsLoadingHint] = useState<boolean>(false);
+
+  // Phiên hội thoại trên Supabase (chat_sessions)
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   // Trạng thái modal
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -45,6 +93,9 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
   const [textInputValue, setTextInputValue] = useState('');
   const [isIOSStandalone, setIsIOSStandalone] = useState(false);
   const [showIOSHelpModal, setShowIOSHelpModal] = useState(false);
+
+  // Điều chỉnh độ khó: 'easier' | 'harder'
+  const [difficultyBias, setDifficultyBias] = useState<'normal' | 'easier' | 'harder'>('normal');
 
   useEffect(() => {
     try {
@@ -72,16 +123,116 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
     defaultRate: settings.speechRate,
   });
 
-  // Tự động cuộn xuống cuối khung chat
   const scrollToBottom = () => {
     setTimeout(() => {
       if (chatContainerRef.current) {
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
       }
-    }, 100);
+    }, 120);
   };
 
-  // Hàm gửi tin nhắn tới API và xử lý kết quả
+  // Khởi tạo session trong bảng chat_sessions trên Supabase
+  useEffect(() => {
+    const initSession = async () => {
+      if (user && isSupabaseConfigured) {
+        try {
+          const { data, error } = await supabase
+            .from('chat_sessions')
+            .insert({
+              user_id: user.id,
+              mode: scenario.mode,
+              scenario: scenario.id,
+              started_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single();
+
+          if (data?.id) {
+            setSessionId(data.id);
+          }
+        } catch (e) {
+          console.warn('Lỗi tạo chat_session:', e);
+        }
+      }
+    };
+    initSession();
+  }, [user, scenario.id, scenario.mode]);
+
+  // Lưu tin nhắn vào chat_turns trên Supabase
+  const persistChatTurn = async (role: 'user' | 'ai', content: any) => {
+    if (user && sessionId && isSupabaseConfigured) {
+      try {
+        await supabase.from('chat_turns').insert({
+          session_id: sessionId,
+          user_id: user.id,
+          role,
+          content,
+        });
+      } catch (e) {
+        console.warn('Lỗi lưu chat_turn:', e);
+      }
+    }
+  };
+
+  // Tiếp tục cuộc hội thoại sau khi sửa lỗi thành công (Action: 'resume')
+  const handleResumeConversation = useCallback(
+    async (targetSentence: string) => {
+      setIsLoading(true);
+      setCorrectionGate(null);
+      setIsResumingAfterCorrection(true);
+      stopSpeaking();
+
+      // Chuẩn bị lịch sử hội thoại
+      const historyPayload = messages.map((m) => ({
+        role: m.role,
+        text: m.text,
+      }));
+
+      try {
+        const data = await sendChatMessage({
+          action: 'resume',
+          scenarioId: scenario.id,
+          strictness: settings.strictness,
+          history: historyPayload,
+          correctedSentence: targetSentence,
+        });
+
+        const aiMsg: ChatMessage = {
+          id: 'ai-' + Date.now(),
+          role: 'ai',
+          text: data.reply.hanzi,
+          pinyin: data.reply.pinyin,
+          vietnamese: data.reply.vietnamese,
+          praiseVi: data.praiseVi || 'Chuẩn rồi! Đi tiếp nhé 🎉',
+          suggestions: data.suggestions,
+          newWords: data.newWords,
+          timestamp: Date.now(),
+        };
+
+        setMessages((prev) => [...prev, aiMsg]);
+        setSuggestions(data.suggestions || []);
+        if (data.newWords?.length) {
+          setAccumulatedWords((prev) => [...prev, ...data.newWords]);
+        }
+        persistChatTurn('ai', data);
+
+        scrollToBottom();
+
+        if (settings.autoPlay) {
+          speak(data.reply.hanzi, settings.speechRate);
+        }
+      } catch (err: any) {
+        console.error('Lỗi khi tiếp tục hội thoại:', err);
+        setErrorBanner(err?.message || 'Có lỗi xảy ra khi tiếp tục hội thoại.');
+      } finally {
+        setIsLoading(false);
+        setIsResumingAfterCorrection(false);
+      }
+    },
+    [messages, scenario.id, settings.strictness, settings.autoPlay, settings.speechRate, speak, stopSpeaking]
+  );
+
+  // Xử lý gửi tin nhắn thông thường
   const handleSendMessage = useCallback(
     async (userInputText: string, inputLang: 'zh' | 'vi' = 'zh') => {
       if (isLoading) return;
@@ -91,12 +242,13 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
 
       if (!isInit && !trimmed) return;
 
-      // Dừng âm thanh đang đọc (nếu có)
       stopSpeaking();
       setErrorBanner(null);
       setLastFailedInput(null);
+      setSmartHintText(null);
+      setHintLevel(0);
 
-      // Thêm tin nhắn của học viên vào danh sách (nếu không phải là init)
+      // Thêm câu của học viên vào màn hình
       if (!isInit) {
         const userMsg: ChatMessage = {
           id: 'user-' + Date.now(),
@@ -105,12 +257,12 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
           timestamp: Date.now(),
         };
         setMessages((prev) => [...prev, userMsg]);
+        persistChatTurn('user', { text: trimmed, lang: inputLang });
         scrollToBottom();
       }
 
       setIsLoading(true);
 
-      // Chuẩn bị lịch sử hội thoại rút gọn gửi lên server
       const historyPayload = messages.map((m) => ({
         role: m.role,
         text: m.text,
@@ -118,61 +270,79 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
 
       try {
         const data = await sendChatMessage({
+          action: isInit ? 'start' : 'turn',
           scenarioId: scenario.id,
-          level,
-          correctionMode: settings.correctionMode,
+          strictness: settings.strictness,
           history: historyPayload,
-          userInput: trimmed,
+          userInput: isInit ? '' : trimmed,
           inputLang,
         });
 
-        // Tạo tin nhắn phản hồi của Lão Sư Mei (có chứa phần đánh giá/sửa lỗi trước)
+        // XỬ LÝ GIA SƯ NGHIÊM (VERDICT: NEEDS_CORRECTION)
+        if (data.verdict === 'needs_correction' && settings.strictness === 'strict') {
+          // Khóa hội thoại, hiện Thẻ Sửa Lỗi
+          setCorrectionGate({
+            userSaid: trimmed,
+            explanationVi: data.explanationVi || 'Câu nói của bạn chưa tự nhiên hoặc có lỗi ngữ pháp.',
+            directionVi: data.directionVi,
+            correctSentence: data.correctSentence || {
+              hanzi: trimmed,
+              pinyin: '',
+              vietnamese: '',
+            },
+            chunks: data.chunks || [],
+            attempts: 0,
+            lastScore: null,
+            heardText: '',
+          });
+
+          // Tự động đọc mẫu câu chuẩn nếu autoPlay bật
+          if (settings.autoPlay && data.correctSentence?.hanzi) {
+            speak(data.correctSentence.hanzi, settings.speechRate);
+          }
+          scrollToBottom();
+          setIsLoading(false);
+          return;
+        }
+
+        // Nếu nói đúng (hoặc chế độ relaxed), hiển thị tin nhắn AI và đi tiếp
         const aiMsg: ChatMessage = {
           id: 'ai-' + Date.now(),
           role: 'ai',
-          text: data.reply.hanzi,
-          pinyin: data.reply.pinyin,
-          vietnamese: data.reply.vietnamese,
-          evaluation: data.evaluation,
-          feedback: data.feedback,
-          suggestions: data.suggestions,
-          newWords: data.newWords,
+          text: data.reply?.hanzi || '',
+          pinyin: data.reply?.pinyin || '',
+          vietnamese: data.reply?.vietnamese || '',
+          praiseVi: data.praiseVi,
+          evaluation: data.verdict === 'needs_correction' ? {
+            type: 'needs_correction',
+            praiseOrCorrectionVi: data.explanationVi,
+            correctedHanzi: data.correctSentence?.hanzi,
+            correctedPinyin: data.correctSentence?.pinyin,
+            correctedVietnamese: data.correctSentence?.vietnamese,
+          } : data.verdict === 'correct' ? {
+            type: 'correct',
+            praiseOrCorrectionVi: data.praiseVi || 'Nói rất tốt!',
+          } : undefined,
+          suggestions: data.suggestions || [],
+          newWords: data.newWords || [],
           timestamp: Date.now(),
         };
 
         setMessages((prev) => [...prev, aiMsg]);
         setSuggestions(data.suggestions || []);
-
-        // Tích luỹ từ mới nếu có
-        if (data.newWords && data.newWords.length > 0) {
+        if (data.newWords?.length) {
           setAccumulatedWords((prev) => [...prev, ...data.newWords]);
         }
-
-        // Nếu học viên vừa hỏi bằng tiếng Việt và Mei đã chỉ câu tiếng Trung tương ứng,
-        // tự động chuyển mic về tiếng Trung để học viên luyện đọc câu đó ngay
-        if (data.evaluation?.type === 'vietnamese_help') {
-          setSpeechLang('zh-CN');
-        }
+        persistChatTurn('ai', data);
 
         scrollToBottom();
 
-        // Tự động phát âm câu tiếng Trung (nếu là dạy câu mới hoặc sửa lỗi thì đọc câu chuẩn đó)
-        if (settings.autoPlaySpeech) {
-          const textToSpeak =
-            data.evaluation?.type === 'vietnamese_help' && data.evaluation?.correctedHanzi
-              ? data.evaluation.correctedHanzi
-              : data.evaluation?.type === 'needs_correction' && data.evaluation?.correctedHanzi
-              ? data.evaluation.correctedHanzi
-              : data.reply.hanzi;
-
-          if (textToSpeak) {
-            speak(textToSpeak, settings.speechRate);
-          }
+        if (settings.autoPlay && aiMsg.text) {
+          speak(aiMsg.text, settings.speechRate);
         }
       } catch (err: any) {
         console.error('Lỗi hội thoại:', err);
-        const errMsg = err?.message || 'Có lỗi xảy ra khi kết nối với Lão Sư Mei.';
-        setErrorBanner(errMsg);
+        setErrorBanner(err?.message || 'Có lỗi xảy ra khi kết nối với Lão Sư Mei.');
         if (!isInit) {
           setLastFailedInput({ text: trimmed, lang: inputLang });
         }
@@ -180,10 +350,105 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
         setIsLoading(false);
       }
     },
-    [isLoading, messages, scenario.id, level, settings.correctionMode, settings.autoPlaySpeech, settings.speechRate, speak, stopSpeaking]
+    [isLoading, messages, scenario.id, settings.strictness, settings.autoPlay, settings.speechRate, speak, stopSpeaking]
   );
 
-  // Hook nhận diện giọng nói (STT)
+  // Chấm điểm câu học viên nói lại trong Thẻ Sửa Lỗi (HOÀN TOÀN TẠI CLIENT - 0 QUOTA DÙNG)
+  const handleGradeCorrectionAttempt = (spokenText: string) => {
+    if (!correctionGate) return;
+
+    const targetHanzi = correctionGate.correctSentence.hanzi;
+    const threshold = settings.passThreshold || 80;
+    const result = evaluatePronunciation(targetHanzi, spokenText, [], threshold);
+
+    const newAttempts = correctionGate.attempts + 1;
+
+    setCorrectionGate((prev) =>
+      prev
+        ? {
+            ...prev,
+            attempts: newAttempts,
+            lastScore: result,
+            heardText: spokenText,
+          }
+        : null
+    );
+
+    if (result.passed) {
+      // Vượt qua gate thành công!
+      setTimeout(() => {
+        handleResumeConversation(targetHanzi);
+      }, 700);
+    }
+  };
+
+  // Bỏ qua và lưu vào sổ lỗi nếu thử nhiều lần không được
+  const handleSkipToMistakes = async () => {
+    if (!correctionGate) return;
+
+    if (user && isSupabaseConfigured) {
+      try {
+        await supabase.from('mistakes').insert({
+          user_id: user.id,
+          session_id: sessionId,
+          user_said: correctionGate.userSaid,
+          correct_hanzi: correctionGate.correctSentence.hanzi,
+          correct_pinyin: correctionGate.correctSentence.pinyin,
+          correct_vi: correctionGate.correctSentence.vietnamese,
+          explanation: correctionGate.explanationVi,
+          attempts: correctionGate.attempts,
+          best_score: correctionGate.lastScore?.score || 0,
+          passed: false,
+        });
+      } catch (e) {
+        console.warn('Lỗi lưu sổ lỗi:', e);
+      }
+    }
+
+    // Tiếp tục hội thoại
+    handleResumeConversation(correctionGate.correctSentence.hanzi);
+  };
+
+  // Yêu cầu gợi ý thông minh 3 cấp
+  const handleRequestHint = async () => {
+    const nextLevel = Math.min(3, hintLevel + 1);
+    setHintLevel(nextLevel);
+    setIsLoadingHint(true);
+
+    try {
+      const data = await sendChatMessage({
+        action: 'hint',
+        scenarioId: scenario.id,
+        history: messages.map((m) => ({ role: m.role, text: m.text })),
+        hintLevel: nextLevel,
+      });
+
+      if (nextLevel === 1) {
+        setSmartHintText(
+          data.level1Keywords?.map((k: any) => `${k.hanzi} [${k.pinyin}]: ${k.vietnamese}`).join(' · ') ||
+            'Hãy chào hỏi hoặc nêu nhu cầu chính của bạn.'
+        );
+      } else if (nextLevel === 2) {
+        setSmartHintText(
+          data.level2Frame?.hanzi
+            ? `Khung câu: ${data.level2Frame.hanzi} (${data.level2Frame.vietnamese})`
+            : 'Hãy thử dùng mẫu câu: 我想...，请问...'
+        );
+      } else {
+        setSmartHintText(
+          data.level3Sentence?.hanzi
+            ? `Câu hoàn chỉnh: ${data.level3Sentence.hanzi} [${data.level3Sentence.pinyin}] - "${data.level3Sentence.vietnamese}"`
+            : 'Bạn có thể nói: 好的，我知道了，谢谢！'
+        );
+      }
+    } catch (e) {
+      setSmartHintText('Hãy mạnh dạn nói một câu ngắn đơn giản, Mei sẽ hỗ trợ bạn!');
+    } finally {
+      setIsLoadingHint(false);
+    }
+  };
+
+  // Hook nhận diện giọng nói
   const {
     isListening,
     transcript,
@@ -196,7 +461,13 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
     lang: speechLang,
     silenceTimeoutMs: 1500,
     onResult: (spokenFinal, spokenLang) => {
-      if (spokenFinal.trim()) {
+      if (!spokenFinal.trim()) return;
+
+      if (correctionGate) {
+        // Đang ở trong Thẻ Sửa Lỗi -> Chấm điểm phát âm câu chuẩn
+        handleGradeCorrectionAttempt(spokenFinal);
+      } else {
+        // Đang trong hội thoại thông thường
         const isVi =
           spokenLang === 'vi-VN' ||
           /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(spokenFinal);
@@ -208,7 +479,7 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
     },
   });
 
-  // Tự động khởi tạo hội thoại khi vừa bước vào phòng (AI chào trước)
+  // Khởi tạo lượt chào đầu tiên của AI
   useEffect(() => {
     if (!isInitializedRef.current) {
       isInitializedRef.current = true;
@@ -216,7 +487,7 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
     }
   }, [handleSendMessage]);
 
-  // Đổi trạng thái Mic
+  // Bật/tắt mic
   const handleToggleMic = () => {
     if (isIOSStandalone) {
       setShowIOSHelpModal(true);
@@ -227,39 +498,19 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
     } else {
       if (isSpeechPlaying) {
         stopSpeaking();
-        // Cho iOS audio session 150ms để giải phóng trước khi bật mic
         setTimeout(() => {
-          startListening(speechLang);
+          startListening(correctionGate ? 'zh-CN' : speechLang);
         }, 150);
       } else {
-        startListening(speechLang);
+        startListening(correctionGate ? 'zh-CN' : speechLang);
       }
     }
   };
 
-  // Phát lại âm thanh theo yêu cầu
   const handleSpeakText = (text: string, rateMultiplier: number = 1.0) => {
     speak(text, settings.speechRate * rateMultiplier);
   };
 
-  // Chọn câu gợi ý để gửi
-  const handleSelectSuggestion = (hanzi: string) => {
-    handleSendMessage(hanzi, 'zh');
-  };
-
-  // Bắt đầu lại hội thoại
-  const handleResetConversation = () => {
-    stopSpeaking();
-    stopListening();
-    setMessages([]);
-    setSuggestions([]);
-    setAccumulatedWords([]);
-    setErrorBanner(null);
-    setLastFailedInput(null);
-    handleSendMessage('__INIT__', 'zh');
-  };
-
-  // Gửi qua chế độ gõ phím dự phòng
   const handleSubmitTextInput = (e: React.FormEvent) => {
     e.preventDefault();
     if (!textInputValue.trim()) return;
@@ -268,75 +519,86 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
     setTextInputValue('');
     setIsTextInputOpen(false);
 
-    const isVietnamese =
-      speechLang === 'vi-VN' ||
-      /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(val);
-    handleSendMessage(val, isVietnamese ? 'vi' : 'zh');
+    if (correctionGate) {
+      handleGradeCorrectionAttempt(val);
+    } else {
+      const isVietnamese =
+        speechLang === 'vi-VN' ||
+        /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(val);
+      handleSendMessage(val, isVietnamese ? 'vi' : 'zh');
+    }
+  };
+
+  // Kết thúc buổi học
+  const handleFinishSession = async () => {
+    if (sessionId && user && isSupabaseConfigured) {
+      try {
+        await supabase
+          .from('chat_sessions')
+          .update({
+            ended_at: new Date().toISOString(),
+            summary: {
+              totalTurns: messages.length,
+              accumulatedWordsCount: accumulatedWords.length,
+            },
+          })
+          .eq('id', sessionId);
+      } catch (e) {}
+    }
+    setIsSummaryOpen(true);
   };
 
   return (
     <div className="flex flex-col h-[100dvh] bg-stone-50 overflow-hidden select-none">
-      {/* Header cố định phía trên */}
+      {/* 1. Header cố định phía trên */}
       <Header
         scenario={scenario}
-        level={level}
         onBack={onBackToHome}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onFinishSession={() => setIsSummaryOpen(true)}
+        onFinishSession={handleFinishSession}
+        onAdjustDifficulty={(dir) => {
+          setDifficultyBias(dir);
+          alert(dir === 'easier' ? 'Đã yêu cầu Mei dùng từ đơn giản hơn!' : 'Đã yêu cầu Mei mở rộng vốn từ tự nhiên hơn!');
+        }}
       />
 
-      {/* Cảnh báo riêng cho người dùng iPhone mở từ màn hình chính */}
+      {/* Thông báo riêng cho iOS PWA */}
       {isIOSStandalone && (
         <div className="bg-amber-600 text-white px-3 py-2 text-xs flex items-center justify-between shadow-sm z-20">
           <span className="leading-tight pr-2">
             📱 <b>Lưu ý iPhone:</b> Apple chặn Micro khi mở từ Màn hình chính. Hãy mở trên tab <b>Safari</b> để nói chuyện!
           </span>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <a
-              href={window.location.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-2.5 py-1 bg-white text-amber-900 rounded-lg font-bold text-[11px] shadow-xs active:scale-95 inline-block"
-            >
-              Mở Safari
-            </a>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
-                alert('Đã chép link! Hãy mở Safari và dán vào thanh địa chỉ nhé.');
-              }}
-              className="px-2 py-1 bg-amber-800 text-amber-100 rounded-lg font-semibold text-[11px] active:scale-95"
-            >
-              Chép link
-            </button>
-          </div>
+          <a
+            href={window.location.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 py-1 bg-white text-amber-900 rounded-lg font-bold text-[11px] shadow-xs active:scale-95 inline-block"
+          >
+            Mở Safari
+          </a>
         </div>
       )}
 
-      {/* Thông báo lỗi / Quota / Mic nếu có */}
+      {/* Thông báo lỗi nếu có */}
       {(errorBanner || sttError) && (
-        <div className="bg-rose-50 border-b border-rose-200 px-4 py-2.5 flex items-center justify-between text-xs text-rose-800 animate-fade-in z-10">
+        <div className="bg-rose-50 border-b border-rose-200 px-4 py-2 flex items-center justify-between text-xs text-rose-800 animate-fade-in z-10">
           <div className="flex items-center gap-2 flex-1 pr-2">
             <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
             <span className="leading-snug">{errorBanner || sttError}</span>
           </div>
-
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {lastFailedInput && (
               <button
                 type="button"
                 onClick={() => handleSendMessage(lastFailedInput.text, lastFailedInput.lang)}
-                className="px-2 py-1 rounded-md bg-rose-200/80 hover:bg-rose-300 font-bold text-rose-900 inline-flex items-center gap-1"
+                className="px-2 py-1 rounded-md bg-rose-200/80 hover:bg-rose-300 font-bold text-rose-900 inline-flex items-center gap-1 text-[11px]"
               >
                 <RefreshCw className="w-3 h-3" /> Thử lại
               </button>
             )}
             <button
               type="button"
-              onClick={() => {
-                setErrorBanner(null);
-              }}
+              onClick={() => setErrorBanner(null)}
               className="p-1 text-rose-500 hover:text-rose-800"
             >
               <X className="w-4 h-4" />
@@ -345,13 +607,13 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
         </div>
       )}
 
-      {/* Khung chat tin nhắn (cuộn được) */}
+      {/* 2. Khung chat tin nhắn cuộn được */}
       <div
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto px-2 sm:px-4 py-4 space-y-1"
+        className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 space-y-1"
       >
-        {/* Lời dẫn mở đầu tình huống */}
-        <div className="max-w-md mx-auto mb-4 p-3 rounded-2xl bg-amber-50/80 border border-amber-200/70 text-xs text-amber-900 text-center">
+        {/* Banner mục tiêu bài học */}
+        <div className="max-w-md mx-auto mb-3 p-3 rounded-2xl bg-amber-50/80 border border-amber-200/70 text-xs text-amber-900 text-center">
           <div className="font-bold mb-0.5">🎯 Mục tiêu: {scenario.goalVi}</div>
           <div className="text-stone-600 italic">{scenario.openingHint}</div>
         </div>
@@ -368,54 +630,116 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
             />
           ))}
 
-          {/* Dấu ba chấm khi AI đang suy nghĩ */}
+          {/* THẺ SỬA LỖI (GIA SƯ NGHIÊM) KHI BỊ CHẶN */}
+          {correctionGate && (
+            <CorrectionCard
+              userSaid={correctionGate.userSaid}
+              explanationVi={correctionGate.explanationVi}
+              directionVi={correctionGate.directionVi}
+              correctSentence={correctionGate.correctSentence}
+              chunks={correctionGate.chunks}
+              attempts={correctionGate.attempts}
+              passThreshold={settings.passThreshold || 80}
+              lastScore={correctionGate.lastScore}
+              isListening={isListening}
+              heardText={correctionGate.heardText}
+              onToggleMic={handleToggleMic}
+              onSkipToMistakes={handleSkipToMistakes}
+              onSpeak={handleSpeakText}
+            />
+          )}
+
+          {/* Dấu ba chấm khi AI đang trả lời */}
           {isLoading && (
-            <div className="flex items-center gap-2 mb-4 px-2">
+            <div className="flex items-center gap-2 mb-4 px-2 animate-fade-in">
               <div className="w-9 h-9 rounded-2xl bg-red-100 border border-red-200 text-red-700 flex items-center justify-center font-bold text-sm">
                 美
               </div>
-              <div className="bg-white rounded-3xl p-3.5 shadow-sm border border-stone-200 flex items-center gap-1.5 text-stone-400">
+              <div className="bg-white rounded-3xl p-3.5 shadow-xs border border-stone-200 flex items-center gap-1.5 text-stone-400">
                 <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse delay-150" />
                 <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse delay-300" />
+                <span className="text-[11px] text-stone-500 font-medium ml-1">
+                  {isResumingAfterCorrection ? 'Mei đang nghe câu bạn sửa...' : 'Mei đang suy nghĩ...'}
+                </span>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Thanh gợi ý câu trả lời nhanh (nếu học viên bí từ) */}
-      <div className="max-w-md mx-auto w-full">
-        <SuggestionsBar
-          suggestions={suggestions}
-          onSelectSuggestion={handleSelectSuggestion}
-          onPreviewSpeak={(hanzi) => handleSpeakText(hanzi, 0.9)}
-          isLoading={isLoading}
-        />
-      </div>
+      {/* 3. Dải Gợi Ý Bí Từ 3 Cấp */}
+      {!correctionGate && (
+        <div className="max-w-md mx-auto w-full px-3 py-1">
+          {smartHintText ? (
+            <div className="p-2.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-950 flex items-start justify-between gap-2 shadow-2xs">
+              <div className="flex items-start gap-1.5">
+                <Lightbulb className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Gợi ý cấp {hintLevel}/3: </span>
+                  <span>{smartHintText}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSmartHintText(null)}
+                className="text-amber-700 hover:text-amber-900 p-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleRequestHint}
+                disabled={isLoadingHint || isLoading}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:text-amber-900 bg-amber-100/70 hover:bg-amber-100 px-2.5 py-1 rounded-xl transition-colors active:scale-95"
+              >
+                <Lightbulb className="w-3 h-3 text-amber-600" />
+                <span>{isLoadingHint ? 'Đang lấy gợi ý...' : '💡 Gợi ý bí từ'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* VÙNG MIC NÓI CHUYỆN TO Ở ĐÁY MÀN HÌNH (CÓ NÚT CHUYỂN TIẾNG TRUNG / TIẾNG VIỆT) */}
-      <div className="max-w-md mx-auto w-full">
-        <MicButton
-          isListening={isListening}
-          isLoading={isLoading}
-          interimTranscript={interimTranscript}
-          transcript={transcript}
-          onToggleMic={handleToggleMic}
-          onSwitchToText={() => setIsTextInputOpen(true)}
-          isSupported={isSTTSupported}
-          speechLang={speechLang}
-          onSelectSpeechLang={setSpeechLang}
-        />
-      </div>
+      {/* 4. Thanh gợi ý câu trả lời nhanh */}
+      {!correctionGate && (
+        <div className="max-w-md mx-auto w-full">
+          <SuggestionsBar
+            suggestions={suggestions}
+            onSelectSuggestion={(hanzi) => handleSendMessage(hanzi, 'zh')}
+            onPreviewSpeak={(hanzi) => handleSpeakText(hanzi, 0.9)}
+            isLoading={isLoading}
+          />
+        </div>
+      )}
 
-      {/* Modal/Khay gõ chữ dự phòng khi không dùng được mic */}
+      {/* 5. Nút Mic & Chuyển Ngôn Ngữ ở đáy màn hình */}
+      {!correctionGate && (
+        <div className="max-w-md mx-auto w-full">
+          <MicButton
+            isListening={isListening}
+            isLoading={isLoading}
+            interimTranscript={interimTranscript}
+            transcript={transcript}
+            onToggleMic={handleToggleMic}
+            onSwitchToText={() => setIsTextInputOpen(true)}
+            isSupported={isSTTSupported}
+            speechLang={speechLang}
+            onSelectSpeechLang={setSpeechLang}
+          />
+        </div>
+      )}
+
+      {/* Modal gõ chữ dự phòng */}
       {isTextInputOpen && (
         <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-3">
           <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-4 animate-fade-in">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-stone-700">
-                ⌨️ Gõ chữ ({speechLang === 'vi-VN' ? 'Tiếng Việt' : 'Tiếng Trung'})
+                ⌨️ Gõ chữ ({correctionGate ? 'Nói lại câu chuẩn' : speechLang === 'vi-VN' ? 'Tiếng Việt' : 'Tiếng Trung'})
               </span>
               <button
                 type="button"
@@ -425,7 +749,6 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
                 <X className="w-4 h-4" />
               </button>
             </div>
-
             <form onSubmit={handleSubmitTextInput} className="flex gap-2">
               <input
                 type="text"
@@ -433,77 +756,22 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
                 value={textInputValue}
                 onChange={(e) => setTextInputValue(e.target.value)}
                 placeholder={
-                  speechLang === 'vi-VN'
-                    ? 'Gõ tiếng Việt (ví dụ: "cho tôi hỏi giá bao nhiêu")...'
-                    : 'Gõ tiếng Trung (ví dụ: 你好, 我要一杯咖啡)...'
+                  correctionGate
+                    ? `Nhập: ${correctionGate.correctSentence.hanzi}`
+                    : speechLang === 'vi-VN'
+                    ? 'Nhập câu tiếng Việt muốn hỏi...'
+                    : 'Nhập chữ Hán hoặc pinyin...'
                 }
-                className="flex-1 p-3 rounded-2xl border border-stone-200 bg-stone-50 text-sm focus:outline-none focus:border-red-500"
+                className="flex-1 px-3 py-2.5 rounded-2xl border border-stone-200 text-sm focus:outline-hidden focus:border-red-500"
               />
               <button
                 type="submit"
-                disabled={!textInputValue.trim() || isLoading}
-                className="px-4 py-3 rounded-2xl bg-red-600 hover:bg-red-700 disabled:bg-stone-300 text-white font-bold text-sm flex items-center justify-center transition-colors shadow-sm"
+                disabled={!textInputValue.trim()}
+                className="px-4 py-2.5 rounded-2xl bg-red-600 disabled:bg-stone-200 text-white font-bold text-xs shadow-xs"
               >
-                <Send className="w-4 h-4" />
+                Gửi
               </button>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal hướng dẫn khắc phục lỗi micro trên iPhone khi mở từ Màn hình chính */}
-      {showIOSHelpModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in backdrop-blur-xs">
-          <div className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-4">
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-3 text-2xl">
-                📱
-              </div>
-              <h3 className="text-base font-bold text-stone-900">
-                Lưu ý Micro trên iPhone
-              </h3>
-              <p className="text-xs text-stone-600 mt-1.5 leading-relaxed">
-                Apple <b>không cấp quyền micro</b> cho bất kỳ trang web nào khi mở từ <b>Màn hình chính</b> (Add to Home Screen).
-              </p>
-            </div>
-
-            <div className="bg-amber-50/80 rounded-2xl p-3 border border-amber-200/80 text-xs text-stone-700 space-y-1.5">
-              <div className="font-bold text-amber-950">👉 Cách để nói chuyện bình thường:</div>
-              <p>1. Mở ứng dụng <b>Safari</b> trên iPhone.</p>
-              <p>2. Dán link trang web vào Safari và bấm Go.</p>
-              <p>3. Trong Safari: Bấm nút <b>Chia sẻ</b> (hình vuông mũi tên lên) &gt; Chọn <b>"Thêm dấu trang"</b> (Bookmark) để lưu lại thay vì ghim ra màn hình chính.</p>
-            </div>
-
-            <div className="space-y-2 pt-1">
-              <a
-                href={window.location.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-sm text-center block shadow-md active:scale-98 transition-transform"
-              >
-                Mở trong Safari ngay
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
-                  alert('Đã chép link! Bạn hãy mở Safari và dán vào thanh địa chỉ nhé.');
-                }}
-                className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-2xl font-semibold text-xs active:scale-98 transition-colors"
-              >
-                Sao chép link web
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowIOSHelpModal(false);
-                  setIsTextInputOpen(true);
-                }}
-                className="w-full py-2 text-stone-500 font-medium text-xs hover:text-stone-800"
-              >
-                Tôi muốn tiếp tục bằng cách Gõ chữ
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -514,7 +782,6 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onUpdateSettings={onUpdateSettings}
-        onResetChat={handleResetConversation}
         availableVoices={voices}
       />
 
