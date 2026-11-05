@@ -27,6 +27,8 @@ interface AuthContextType {
   isConfigured: boolean;
   signInWithOtp: (email: string) => Promise<{ error: Error | null }>;
   verifyOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUpWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateSettings: (newSettings: Partial<UserSettings>) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -175,6 +177,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
+  // Đăng nhập bằng Email & Mật khẩu (Không gửi email, không bao giờ bị rate limit)
+  const signInWithPassword = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: new Error('Chưa cấu hình Supabase') };
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (!error && data.user) {
+      setUser(data.user);
+      await loadUserData(data.user.id);
+    }
+    return { error };
+  };
+
+  // Đăng ký bằng Email & Mật khẩu
+  const signUpWithPassword = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: new Error('Chưa cấu hình Supabase') };
+    }
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+    if (!error && data.user) {
+      setUser(data.user);
+      await loadUserData(data.user.id);
+    }
+    return { error };
+  };
+
   // Đăng xuất
   const signOut = async () => {
     if (isSupabaseConfigured) {
@@ -219,6 +253,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isConfigured: isSupabaseConfigured,
         signInWithOtp,
         verifyOtp,
+        signInWithPassword,
+        signUpWithPassword,
         signOut,
         updateSettings,
         refreshProfile,
