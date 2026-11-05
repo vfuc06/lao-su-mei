@@ -45,6 +45,24 @@
     "example_vi": "Sau cuộc họp phiền Tiểu Lý tổng hợp biên bản họp và gửi cho mọi người."
   },
   {
+    "hanzi": "讨论",
+    "pinyin": "tǎolùn",
+    "vi": "Thảo luận, bàn bạc",
+    "category": "meeting",
+    "example_hanzi": "针对这个新功能，我们需要深入讨论一下。",
+    "example_pinyin": "Zhēnduì zhège xīn gōngnéng, wǒmen xūyào shēnrù tǎolùn yíxià.",
+    "example_vi": "Đối với tính năng mới này, chúng ta cần thảo luận sâu hơn một chút."
+  },
+  {
+    "hanzi": "达成一致",
+    "pinyin": "dáchéng yízhì",
+    "vi": "Đạt được sự đồng thuận",
+    "category": "meeting",
+    "example_hanzi": "经过充分沟通，双方最终达成了一致意见。",
+    "example_pinyin": "Jīngguò chōngfèn gōutōng, shuāngfāng zuìzhōng dáchéng le yízhì yìjiàn.",
+    "example_vi": "Trải qua trao đổi thấu đáo, hai bên cuối cùng đã đạt được ý kiến thống nhất."
+  },
+  {
     "hanzi": "汇报",
     "pinyin": "huìbào",
     "vi": "Báo cáo tiến độ / tình hình (với cấp trên)",
@@ -79,6 +97,24 @@
     "example_hanzi": "各项任务必须明确责任人并抓紧落实。",
     "example_pinyin": "Gè xiàng rènwu bìxū míngquè zérénrén bìng zhuājǐn luòshí.",
     "example_vi": "Từng hạng mục nhiệm vụ cần làm rõ người chịu trách nhiệm và khẩn trương triển khai."
+  },
+  {
+    "hanzi": "延期",
+    "pinyin": "yán qī",
+    "vi": "Hoãn lại, gia hạn thời gian",
+    "category": "report",
+    "example_hanzi": "由于物料未到齐，项目交付时间需要延期三天。",
+    "example_pinyin": "Yóuyú wùliào wèi dào qí, xiàngmù jiāofù shíjiān xūyào yán qī sān tiān.",
+    "example_vi": "Do nguyên vật liệu chưa về đủ, thời gian bàn giao dự án cần gia hạn ba ngày."
+  },
+  {
+    "hanzi": "指标",
+    "pinyin": "zhǐbiāo",
+    "vi": "Chỉ tiêu, KPI",
+    "category": "report",
+    "example_hanzi": "本季度我们团队超额完成了业绩指标。",
+    "example_pinyin": "Běn jīdù wǒmen tuánduì chāo'é wánchéng le yèjì zhǐbiāo.",
+    "example_vi": "Quý này đội ngũ chúng ta đã hoàn thành vượt mức chỉ tiêu doanh số."
   },
   {
     "hanzi": "请假",
@@ -117,6 +153,24 @@
     "example_vi": "Chúc mừng bạn đã thuận lợi vượt qua phỏng vấn, thứ hai tuần tới làm thủ tục nhận việc."
   },
   {
+    "hanzi": "交接",
+    "pinyin": "jiāojiē",
+    "vi": "Bàn giao công việc",
+    "category": "office",
+    "example_hanzi": "休假前请务必把手头的工作交接给同组同事。",
+    "example_pinyin": "Xiūjià qián qǐng wùbì bǎ shǒutóu de gōngzuò jiāojiē gěi tóng zǔ tóngshì.",
+    "example_vi": "Trước khi nghỉ phép xin hãy bàn giao công việc đang xử lý cho đồng nghiệp cùng nhóm."
+  },
+  {
+    "hanzi": "考勤",
+    "pinyin": "kǎoqín",
+    "vi": "Chấm công, điểm danh",
+    "category": "office",
+    "example_hanzi": "每个月月末人力资源部会统计当月的考勤数据。",
+    "example_pinyin": "Měi gè yuè yuèmò rénlì zīyuán bù huì tǒngjì dāng yuè de kǎoqín shùjù.",
+    "example_vi": "Cuối mỗi tháng phòng nhân sự sẽ thống kê dữ liệu chấm công trong tháng."
+  },
+  {
     "hanzi": "报价",
     "pinyin": "bào jià",
     "vi": "Báo giá",
@@ -153,6 +207,24 @@
     "example_vi": "Nếu đợt này số lượng đặt hàng vượt quá một nghìn chiếc, chúng tôi có thể áp dụng mức chiết khấu 10%."
   },
   {
+    "hanzi": "客户",
+    "pinyin": "kèhù",
+    "vi": "Khách hàng",
+    "category": "client",
+    "example_hanzi": "维系老客户和开拓新客户同样重要。",
+    "example_pinyin": "Wéixì lǎo kèhù hé kāituò xīn kèhù tóngyàng zhòngyào.",
+    "example_vi": "Chăm sóc khách hàng cũ và khai thác khách hàng mới đều quan trọng như nhau."
+  },
+  {
+    "hanzi": "签单",
+    "pinyin": "qiān dān",
+    "vi": "Ký hợp đồng, chốt đơn",
+    "category": "client",
+    "example_hanzi": "我们今天下午顺利与李总签单了。",
+    "example_pinyin": "Wǒmen jīntiān xiàwǔ shùnlì yǔ Lǐ zǒng qiān dān le.",
+    "example_vi": "Chiều nay chúng tôi đã thuận lợi ký hợp đồng với tổng giám đốc Lý."
+  },
+  {
     "hanzi": "投诉",
     "pinyin": "tóusù",
     "vi": "Khiếu nại, phản ánh bức xúc",
@@ -178,6 +250,122 @@
     "example_hanzi": "针对这个突发情况，我们制定了备用方案。",
     "example_pinyin": "Zhēnduì zhège tūfā qíngkuàng, wǒmen zhìdìng le bèiyòng fāng'àn.",
     "example_vi": "Đối với tình huống đột xuất này, chúng tôi đã xây dựng phương án dự phòng."
+  },
+  {
+    "hanzi": "维护",
+    "pinyin": "wéihù",
+    "vi": "Bảo trì, duy trì vận hành",
+    "category": "operation",
+    "example_hanzi": "系统将于本周日凌晨进行常规停机维护。",
+    "example_pinyin": "Xìtǒng jiāng yú běn zhōurì língchén jìnxíng chángguī tíngjī wéihù.",
+    "example_vi": "Hệ thống sẽ tiến hành bảo trì định kỳ vào rạng sáng chủ nhật tuần này."
+  },
+  {
+    "hanzi": "简历",
+    "pinyin": "jiǎnlì",
+    "vi": "Sơ yếu lý lịch, CV",
+    "category": "office",
+    "example_hanzi": "我已经把最新的个人中文简历发给您了。",
+    "example_pinyin": "Wǒ yǐjīng bǎ zuìxīn de gèrén zhōngwén jiǎnlì fā gěi nín le.",
+    "example_vi": "Em đã gửi bản CV tiếng Trung mới nhất của mình cho anh/chị rồi ạ."
+  },
+  {
+    "hanzi": "面试",
+    "pinyin": "miànshì",
+    "vi": "Phỏng vấn xin việc",
+    "category": "office",
+    "example_hanzi": "明天下午两点我有一场重要的外企面试。",
+    "example_pinyin": "Míngtiān xiàwǔ liǎng diǎn wǒ yǒu yì chǎng zhòngyào de wàiqǐ miànshì.",
+    "example_vi": "Chiều mai lúc hai giờ tôi có một buổi phỏng vấn quan trọng vào doanh nghiệp nước ngoài."
+  },
+  {
+    "hanzi": "薪水",
+    "pinyin": "xīnshuǐ",
+    "vi": "Tiền lương, thu nhập",
+    "category": "office",
+    "example_hanzi": "我们公司的薪水每月十号准时发放到银行卡。",
+    "example_pinyin": "Wǒmen gōngsī de xīnshuǐ měi yuè shí hào zhǔnshí fāfàng dào yínhángkǎ.",
+    "example_vi": "Tiền lương của công ty chúng tôi được trả đúng ngày 10 hàng tháng qua thẻ ngân hàng."
+  },
+  {
+    "hanzi": "培训",
+    "pinyin": "péixùn",
+    "vi": "Đào tạo, tập huấn",
+    "category": "office",
+    "example_hanzi": "新员工入职第一周都要参加业务培训。",
+    "example_pinyin": "Xīn yuángōng rùzhí dì yī zhōu dōu yào cānjiā yèwù péixùn.",
+    "example_vi": "Nhân viên mới tuần đầu tiên đều phải tham gia đào tạo nghiệp vụ."
+  },
+  {
+    "hanzi": "审批",
+    "pinyin": "shēnpī",
+    "vi": "Phê duyệt, duyệt đơn",
+    "category": "office",
+    "example_hanzi": "这份采购申请已经在OA系统里流转审批了。",
+    "example_pinyin": "Zhè fèn cǎigòu shēnqǐng yǐjīng zài OA xìtǒng lǐ liúzhuǎn shēnpī le.",
+    "example_vi": "Đơn xin mua sắm này đã được chuyển lên hệ thống nội bộ để chờ duyệt rồi."
+  },
+  {
+    "hanzi": "签字",
+    "pinyin": "qiān zì",
+    "vi": "Ký tên xác nhận",
+    "category": "office",
+    "example_hanzi": "请您在协议确认书的最后一页右下角签字。",
+    "example_pinyin": "Qǐng nín zài xiéyì quèrènshū de zuìhòu yí yè yòuxiàjiǎo qiān zì.",
+    "example_vi": "Xin mời anh/chị ký tên ở góc dưới bên phải trang cuối cùng của biên bản thỏa thuận."
+  },
+  {
+    "hanzi": "预算",
+    "pinyin": "yùsuàn",
+    "vi": "Ngân sách tài chính",
+    "category": "report",
+    "example_hanzi": "第四季度的市场营销预算已经获批。",
+    "example_pinyin": "Dì sì jīdù de shìchǎng yíngxiāo yùsuàn yǐjīng huò pī.",
+    "example_vi": "Ngân sách marketing quý 4 đã chính thức được phê duyệt."
+  },
+  {
+    "hanzi": "成本",
+    "pinyin": "chéngběn",
+    "vi": "Giá vốn, chi phí sản xuất",
+    "category": "report",
+    "example_hanzi": "优化供应链可以有效降低产品生产成本。",
+    "example_pinyin": "Yōuhuà gōngyìngliàn kěyǐ yǒuxiào jiàngdī chǎnpǐn shēngchǎn chéngběn.",
+    "example_vi": "Tối ưu hóa chuỗi cung ứng có thể giảm thiểu chi phí sản xuất sản phẩm một cách hiệu quả."
+  },
+  {
+    "hanzi": "利润",
+    "pinyin": "lìrùn",
+    "vi": "Lợi nhuận",
+    "category": "report",
+    "example_hanzi": "今年上半年公司的净利润同比增长了百分之十五。",
+    "example_pinyin": "Jīnnián shàngbànnián gōngsī de jìnglìrùn tóngbǐ zēngzhǎng le bǎifēnzhī shíwǔ.",
+    "example_vi": "Sáu tháng đầu năm nay lợi nhuận ròng của công ty tăng trưởng 15% so với cùng kỳ."
+  },
+  {
+    "hanzi": "交付",
+    "pinyin": "jiāofù",
+    "vi": "Bàn giao, giao hàng",
+    "category": "client",
+    "example_hanzi": "我们承诺在月底前完成第二批货物的交付。",
+    "example_pinyin": "Wǒmen chéngnuò zài yuèdǐ qián wánchéng dì èr pī huòwù de jiāofù.",
+    "example_vi": "Chúng tôi cam kết hoàn thành bàn giao lô hàng thứ hai trước cuối tháng."
+  },
+  {
+    "hanzi": "发票",
+    "pinyin": "fāpiào",
+    "vi": "Hóa đơn VAT, chứng từ thuế",
+    "category": "client",
+    "example_hanzi": "付款完成后财务会为您开具电子增值税发票。",
+    "example_pinyin": "Fùkuǎn wánchéng hòu cáiwù huì wèi nín kāijù diànzǐ zēngzhíshuì fāpiào.",
+    "example_vi": "Sau khi thanh toán hoàn tất bộ phận kế toán sẽ xuất hóa đơn GTGT điện tử cho quý khách."
+  },
+  {
+    "hanzi": "辞职",
+    "pinyin": "cízhí",
+    "vi": "Nghỉ việc, từ chức",
+    "category": "office",
+    "example_hanzi": "按照规定，员工辞职需要提前三十天书面通知。",
+    "example_pinyin": "Ànzhào guīdìng, yuángōng cízhí xūyào tíqián sānshí tiān shūmiàn tōngzhī.",
+    "example_vi": "Theo quy định, nhân viên xin nghỉ việc cần thông báo bằng văn bản trước ba mươi ngày."
   }
 ]
-

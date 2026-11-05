@@ -9,6 +9,7 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { ScoreRing } from '../components/ScoreRing';
 import { SyllableDiff } from '../components/SyllableDiff';
 import { ZhText } from '../components/ZhText';
+import { playZhAudio } from '../lib/audio';
 import {
   Headphones,
   Sparkles,
@@ -231,13 +232,8 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
 
   // Phát âm câu mẫu
   const playPromptAudio = (item: PhrasePair, rateMultiplier: number = 1.0) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
     const textToSpeak = mode === 'qa' ? item.qHanzi : item.aHanzi;
-    const u = new SpeechSynthesisUtterance(textToSpeak);
-    u.lang = 'zh-CN';
-    u.rate = (settings.speechRate || 1.0) * rateMultiplier;
-    window.speechSynthesis.speak(u);
+    playZhAudio(textToSpeak, (settings.speechRate || 1.0) * rateMultiplier);
   };
 
   // Chấm điểm âm tiết

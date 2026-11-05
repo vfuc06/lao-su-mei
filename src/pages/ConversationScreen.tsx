@@ -23,6 +23,7 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
 import { evaluatePronunciation } from '../lib/scoring';
 import { sendChatMessage } from '../lib/api';
+import { playZhAudio, stopZhAudio } from '../lib/audio';
 import {
   AlertCircle,
   RefreshCw,
@@ -278,34 +279,7 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
           inputLang,
         });
 
-        // XỬ LÝ GIA SƯ NGHIÊM (VERDICT: NEEDS_CORRECTION)
-        if (data.verdict === 'needs_correction' && settings.strictness === 'strict') {
-          // Khóa hội thoại, hiện Thẻ Sửa Lỗi
-          setCorrectionGate({
-            userSaid: trimmed,
-            explanationVi: data.explanationVi || 'Câu nói của bạn chưa tự nhiên hoặc có lỗi ngữ pháp.',
-            directionVi: data.directionVi,
-            correctSentence: data.correctSentence || {
-              hanzi: trimmed,
-              pinyin: '',
-              vietnamese: '',
-            },
-            chunks: data.chunks || [],
-            attempts: 0,
-            lastScore: null,
-            heardText: '',
-          });
-
-          // Tự động đọc mẫu câu chuẩn nếu autoPlay bật
-          if (settings.autoPlay && data.correctSentence?.hanzi) {
-            speak(data.correctSentence.hanzi, settings.speechRate);
-          }
-          scrollToBottom();
-          setIsLoading(false);
-          return;
-        }
-
-        // Nếu nói đúng (hoặc chế độ relaxed), hiển thị tin nhắn AI và đi tiếp
+        // Hiển thị tin nhắn AI và tiếp tục cuộc đối thoại 1-1
         const aiMsg: ChatMessage = {
           id: 'ai-' + Date.now(),
           role: 'ai',
@@ -313,16 +287,7 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
           pinyin: data.reply?.pinyin || '',
           vietnamese: data.reply?.vietnamese || '',
           praiseVi: data.praiseVi,
-          evaluation: data.verdict === 'needs_correction' ? {
-            type: 'needs_correction',
-            praiseOrCorrectionVi: data.explanationVi,
-            correctedHanzi: data.correctSentence?.hanzi,
-            correctedPinyin: data.correctSentence?.pinyin,
-            correctedVietnamese: data.correctSentence?.vietnamese,
-          } : data.verdict === 'correct' ? {
-            type: 'correct',
-            praiseOrCorrectionVi: data.praiseVi || 'Nói rất tốt!',
-          } : undefined,
+          evaluation: data.evaluation,
           suggestions: data.suggestions || [],
           newWords: data.newWords || [],
           timestamp: Date.now(),
@@ -338,7 +303,7 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
         scrollToBottom();
 
         if (settings.autoPlay && aiMsg.text) {
-          speak(aiMsg.text, settings.speechRate);
+          playZhAudio(aiMsg.text, settings.speechRate || 1.0);
         }
       } catch (err: any) {
         console.error('Lỗi hội thoại:', err);
@@ -508,7 +473,7 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
   };
 
   const handleSpeakText = (text: string, rateMultiplier: number = 1.0) => {
-    speak(text, settings.speechRate * rateMultiplier);
+    playZhAudio(text, (settings.speechRate || 1.0) * rateMultiplier);
   };
 
   const handleSubmitTextInput = (e: React.FormEvent) => {

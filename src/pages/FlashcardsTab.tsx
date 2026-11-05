@@ -8,6 +8,7 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { ZhText } from '../components/ZhText';
 import { ScoreRing } from '../components/ScoreRing';
 import { SyllableDiff } from '../components/SyllableDiff';
+import { playZhAudio } from '../lib/audio';
 import {
   Layers,
   Sparkles,
@@ -218,14 +219,9 @@ export const FlashcardsTab: React.FC = () => {
     setVoiceScore(null);
   };
 
-  // Đọc phát âm Hán tự qua Web SpeechSynthesis
+  // Đọc phát âm Hán tự qua playZhAudio
   const speakHanzi = (text: string, rate: number = 1.0) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'zh-CN';
-    utterance.rate = rate;
-    window.speechSynthesis.speak(utterance);
+    playZhAudio(text, rate);
   };
 
   // Chấm điểm phát âm ở chế độ Đọc to

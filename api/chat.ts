@@ -5,7 +5,7 @@ import { pinyin } from 'pinyin-pro';
 const SCENARIO_ROLES: Record<string, { titleVi: string; role: string; mode: 'daily' | 'workplace'; goalVi: string }> = {
   // Đời sống
   greeting: { titleVi: 'Chào hỏi & giới thiệu', role: 'Một người bạn Trung Quốc mới gặp', mode: 'daily', goalVi: 'Biết cách chào, giới thiệu tên, tuổi và quê quán Việt Nam.' },
-  restaurant: { titleVi: 'Gọi món ở nhà hàng', role: 'Nhân viên phục vụ nhà hàng', mode: 'daily', goalVi: 'Gọi được món ăn, đồ uống và thanh toán.' },
+  restaurant: { titleVi: 'Gọi món ở nhà hàng', role: 'Nhân viên phục vụ quán ăn', mode: 'daily', goalVi: 'Gọi được món ăn, đồ uống và thanh toán.' },
   shopping: { titleVi: 'Mua sắm & mặc cả', role: 'Chủ cửa hàng quần áo / đồ lưu niệm', mode: 'daily', goalVi: 'Hỏi giá, chê đắt và mặc cả bớt.' },
   taxi: { titleVi: 'Đi taxi / hỏi đường', role: 'Tài xế taxi', mode: 'daily', goalVi: 'Nói địa điểm muốn đến, chỉ đường rẽ trái/phải.' },
   hotel: { titleVi: 'Nhận phòng khách sạn', role: 'Lễ tân khách sạn', mode: 'daily', goalVi: 'Check-in phòng đã đặt, hỏi wifi và ăn sáng.' },
@@ -119,37 +119,37 @@ export default async function handler(req: any, res: any) {
   const {
     action = 'turn', // 'start' | 'turn' | 'resume' | 'hint'
     scenarioId = 'greeting',
-    strictness = 'strict', // 'strict' | 'relaxed'
     history = [],
     userInput = '',
     inputLang = 'zh', // 'zh' | 'vi'
-    correctedSentence = '', // Dùng cho action 'resume'
-    hintLevel = 1, // 1 | 2 | 3 cho action 'hint'
+    hintLevel = 1,
   } = body;
 
   const scenarioMeta = SCENARIO_ROLES[scenarioId] || SCENARIO_ROLES.greeting;
   const isWorkplace = scenarioMeta.mode === 'workplace';
 
-  // 4. Xây dựng System Instruction & Prompt theo action
-  const systemInstruction = `Bạn là "Lão Sư Mei" (美老师) — gia sư tiếng Trung giao tiếp thông minh, nghiêm khắc nhưng kiên nhẫn, dạy 1-1 cho học viên người Việt Nam.
+  // 4. Xây dựng System Instruction & Prompt
+  const systemInstruction = `Bạn là "Lão Sư Mei" (美老师) — gia sư tiếng Trung giao tiếp thân thiện, thông minh, dạy 1-1 cho người Việt Nam.
 
-# NGUYÊN TẮC CỐT LÕI (GIA SƯ NGHIÊM):
-1. Học giao tiếp mà nói sai thì KHÔNG BAO GIỜ được ậm ừ cho qua.
-2. Khi học viên nói tiếng Trung:
-   - Nếu câu nói CÓ LỖI (sai ngữ pháp, sai trật tự từ, sai lượng từ, dùng sai từ trong ngữ cảnh, hoặc nói tiếng Việt khi đang luyện tiếng Trung):
-     + Đặt verdict = "needs_correction".
-     + Giải thích ngắn gọn lỗi sai bằng tiếng Việt trong "explanationVi" (tối đa 2 câu: sai ở đâu, vì sao sai).
-     + Hướng dẫn cách người bản xứ nói tự nhiên trong "directionVi".
-     + Đưa ra câu chuẩn học viên BẮT BUỘC PHẢI NÓI trong "correctSentence" (Hán tự giản thể, pinyin có thanh điệu, dịch nghĩa tiếng Việt).
-     + Tách câu chuẩn thành các cụm 2-3 chữ trong "chunks" để học viên dễ nhại lại.
-     + Ở chế độ "strict" (nghiêm), KHÔNG trả lời tiếp câu chuyện (để reply = null hoặc để trống), BUỘC học viên phải sửa đúng mới được đi tiếp.
-   - Nếu câu nói ĐÚNG VÀ TỰ NHIÊN:
-     + Đặt verdict = "correct".
-     + Khen ngợi ngắn gọn bằng tiếng Việt trong "praiseVi".
-     + Nhập vai "${scenarioMeta.role}" trả lời tiếp câu chuyện trong "reply" (1-2 câu ngắn, tự nhiên) và HỎI TIẾP một câu để học viên phản xạ.
-3. NGỮ CẢNH CÔNG SỞ:
-   - Nếu là tình huống Công sở (${isWorkplace ? 'ĐÚNG' : 'KHÔNG'}): BẮT BUỘC dùng kính ngữ (您, 请问, 麻烦您) với sếp, đối tác và khách hàng.
-4. LUÔN TRẢ VỀ JSON HỢP LỆ THEO SCHEMA. Chữ Hán BẮT BUỘC là CHỮ HÁN GIẢN THỂ (简体字).`;
+# NGUYÊN TẮC HỘI THOẠI 1-1 BẮT BUỘC:
+1. LUÔN LUÔN DUY TRÌ ĐỐI THOẠI:
+   - Dù học viên nói đúng hay nói sai, bạn LUÔN LUÔN NHẬP VAI "${scenarioMeta.role}" đáp lại câu chuyện và HỎI TIẾP MỘT CÂU MỚI để học viên có cái nói tiếp! KHÔNG BAO GIỜ im lặng hoặc dừng cuộc trò chuyện.
+2. KIỂM TRA ĐÚNG / SAI CỦA HỌC VIÊN:
+   - Nếu học viên nói tiếng Trung đúng: khen ngợi cụ thể bằng tiếng Việt trong "praiseOrCorrectionVi" (vd: "Rất chuẩn! Câu này bạn dùng từ rất tự nhiên.").
+   - Nếu học viên nói tiếng Trung có lỗi (ngữ pháp, lượng từ, trật tự từ, dùng từ chưa chuẩn):
+     + Đặt evaluation.type = "needs_correction".
+     + Giải thích lỗi ngắn gọn bằng tiếng Việt trong "praiseOrCorrectionVi" (sai ở đâu, vì sao sai).
+     + Đưa ra câu chuẩn trong "correctedHanzi", "correctedPinyin", "correctedVietnamese".
+   - Nếu học viên nói tiếng Việt hoặc hỏi cách nói:
+     + Đặt evaluation.type = "vietnamese_help".
+     + Hướng dẫn câu tiếng Trung tương ứng trong "correctedHanzi" và giải thích cách nói bằng tiếng Việt.
+3. PHẢN HỒI CỦA MEI (trong "reply"):
+   - Nhập vai "${scenarioMeta.role}" trả lời bằng 1-2 câu tiếng Trung ngắn gọn, tự nhiên.
+   - BẮT BUỘC HỎI TIẾP một câu hỏi để học viên phản xạ trả lời tiếp.
+   - Nếu là tình huống Công sở (${isWorkplace ? 'ĐÚNG' : 'KHÔNG'}): dùng kính ngữ lịch sự (您, 请问, 麻烦您).
+4. GỢI Ý CÂU TRẢ LỜI (trong "suggestions"):
+   - Luôn đưa ra 2-3 câu gợi ý trả lời cho câu hỏi mới để học viên có thể bấm nghe hoặc nói theo.
+5. LUÔN TRẢ VỀ JSON HỢP LỆ THEO SCHEMA. Chữ Hán BẮT BUỘC là CHỮ HÁN GIẢN THỂ (汉字).`;
 
   let promptText = '';
 
@@ -158,27 +158,19 @@ export default async function handler(req: any, res: any) {
 Tình huống: "${scenarioMeta.titleVi}".
 Vai của bạn: "${scenarioMeta.role}".
 Mục tiêu bài học: "${scenarioMeta.goalVi}".
-Hãy chủ động mở lời chào đón học viên bằng 1 câu tiếng Trung tự nhiên phù hợp với vai diễn, và hỏi 1 câu mở màn ngắn gọn.
-Đồng thời đưa ra 2-3 câu gợi ý trả lời (suggestions) để học viên tham khảo.`;
-  } else if (action === 'resume') {
-    promptText = `[HỌC VIÊN VỪA SỬA LỖI XONG VÀ ĐÃ NÓI ĐÚNG CÂU CHUẨN]
-Câu học viên vừa nói đúng: "${correctedSentence}".
-Tình huống: "${scenarioMeta.titleVi}" (Vai của bạn: "${scenarioMeta.role}").
-Hãy:
-1. Đặt praiseVi = một lời khen ngắn ngọn khích lệ ("Chuẩn rồi! Đi tiếp nhé 🎉" hoặc "Rất tốt! Phát âm chuẩn lắm.").
-2. Nhập vai "${scenarioMeta.role}", coi như học viên vừa nói xong câu trên, trả lời tiếp 1-2 câu tiếng Trung ngắn và HỎI TIẾP một câu mới để học viên nói tiếp.
-3. Đưa ra 2-3 câu gợi ý trả lời (suggestions).`;
+Hãy chào học viên thân thiện bằng 1 câu tiếng Trung tự nhiên phù hợp với vai diễn, và hỏi 1 câu mở màn ngắn gọn.
+Đồng thời đưa ra 2-3 câu gợi ý trả lời (suggestions).`;
   } else if (action === 'hint') {
     promptText = `[GỢI Ý KHI BÍ TỪ - CẤP ${hintLevel}]
 Tình huống: "${scenarioMeta.titleVi}".
 Lịch sử trao đổi gần nhất:
 ${(history || []).slice(-4).map((h: any) => `${h.role}: ${h.text}`).join('\n')}
-Yêu cầu:
-- Nếu cấp 1: Gợi ý 1-2 từ khóa then chốt nên dùng.
-- Nếu cấp 2: Gợi ý khung câu có chỗ trống (vd: 我想...，请...).
-- Nếu cấp 3: Gợi ý một câu hoàn chỉnh mẫu.`;
+Hãy gợi ý:
+- Cấp 1: 1-2 từ khóa then chốt nên dùng.
+- Cấp 2: Khung câu có chỗ trống (vd: 我想...，请...).
+- Cấp 3: Một câu hoàn chỉnh mẫu.`;
   } else {
-    // action === 'turn'
+    // action === 'turn' hoặc 'resume'
     const recentHistory = Array.isArray(history) ? history.slice(-6) : [];
     let histStr = '';
     for (const turn of recentHistory) {
@@ -190,13 +182,12 @@ ${histStr}---------------------------------
 
 Học viên vừa nói câu: "${userInput.trim()}".
 Ngôn ngữ nhận diện: ${inputLang === 'vi' ? 'TIẾNG VIỆT' : 'TIẾNG TRUNG'}.
-Chế độ nghiêm khắc: ${strictness}.
 Tình huống: "${scenarioMeta.titleVi}". Vai của bạn: "${scenarioMeta.role}".
 
-Hãy phân tích và trả về JSON:
-- Nếu học viên nói tiếng Việt hoặc hỏi cách diễn đạt: xem đây là lỗi vietnamese_input, dạy câu tiếng Trung chuẩn xác tương ứng trong correctSentence.
-- Nếu học viên nói tiếng Trung: kiểm tra ngữ pháp, từ vựng, trật tự câu, lượng từ và kính ngữ.
-- Quyết định verdict = "correct" hoặc "needs_correction".`;
+YÊU CẦU:
+1. Đánh giá câu nói của học viên (khen ngợi nếu đúng, chỉ ra lỗi và câu chuẩn nếu sai, hoặc dạy câu tiếng Trung nếu nói tiếng Việt).
+2. NHẬP VAI "${scenarioMeta.role}", TRẢ LỜI CÂU CHUYỆN VÀ HỎI TIẾP MỘT CÂU TIẾNG TRUNG MỚI để học viên tiếp tục đối thoại 1-1!
+3. Đưa ra 2-3 câu gợi ý trả lời cho câu hỏi mới.`;
   }
 
   // 5. Gọi Gemini Flash Lite API
@@ -223,62 +214,46 @@ Hãy phân tích và trả về JSON:
             responseSchema: {
               type: Type.OBJECT,
               properties: {
-                verdict: {
-                  type: Type.STRING,
-                  description: '"correct" | "needs_correction"',
-                },
-                errorType: {
-                  type: Type.STRING,
-                  description: '"grammar" | "word_choice" | "word_order" | "measure_word" | "register" | "vietnamese_input"',
-                },
-                wrongPart: {
-                  type: Type.STRING,
-                  description: 'Phần câu nói bị sai',
-                },
-                explanationVi: {
-                  type: Type.STRING,
-                  description: 'Giải thích ngắn gọn lỗi sai bằng tiếng Việt',
-                },
-                directionVi: {
-                  type: Type.STRING,
-                  description: 'Hướng dẫn cách nói tự nhiên của người bản xứ',
-                },
-                correctSentence: {
+                evaluation: {
                   type: Type.OBJECT,
-                  description: 'Câu tiếng Trung chuẩn xác học viên cần nói lại',
+                  description: 'Đánh giá câu nói của học viên: đúng/sai, sửa lỗi hoặc dịch câu tiếng Việt',
                   properties: {
-                    hanzi: { type: Type.STRING },
-                    pinyin: { type: Type.STRING },
-                    vietnamese: { type: Type.STRING },
-                  },
-                },
-                chunks: {
-                  type: Type.ARRAY,
-                  description: 'Tách câu chuẩn thành các cụm 2-3 chữ để dễ nhại lại',
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      hanzi: { type: Type.STRING },
-                      pinyin: { type: Type.STRING },
+                    type: {
+                      type: Type.STRING,
+                      description: '"correct" | "needs_correction" | "vietnamese_help" | "initial_greeting"',
+                    },
+                    praiseOrCorrectionVi: {
+                      type: Type.STRING,
+                      description: 'Nhận xét tiếng Việt: Khen ngợi nếu đúng; Chỉ rõ lỗi và cách sửa nếu sai',
+                    },
+                    correctedHanzi: {
+                      type: Type.STRING,
+                      description: 'Câu tiếng Trung chuẩn xác bằng chữ Hán giản thể',
+                    },
+                    correctedPinyin: {
+                      type: Type.STRING,
+                      description: 'Pinyin có dấu thanh của câu chuẩn',
+                    },
+                    correctedVietnamese: {
+                      type: Type.STRING,
+                      description: 'Nghĩa tiếng Việt của câu chuẩn',
                     },
                   },
-                },
-                praiseVi: {
-                  type: Type.STRING,
-                  description: 'Lời khen ngắn gọn khi nói đúng',
+                  required: ['type', 'praiseOrCorrectionVi'],
                 },
                 reply: {
                   type: Type.OBJECT,
-                  description: 'Câu nói của AI tiếp nối câu chuyện (null nếu needs_correction ở chế độ strict)',
+                  description: 'Câu nói của Lão Sư Mei tiếp nối cuộc trò chuyện và HỎI TIẾP một câu',
                   properties: {
-                    hanzi: { type: Type.STRING },
-                    pinyin: { type: Type.STRING },
-                    vietnamese: { type: Type.STRING },
+                    hanzi: { type: Type.STRING, description: 'Chữ Hán giản thể' },
+                    pinyin: { type: Type.STRING, description: 'Pinyin có dấu thanh' },
+                    vietnamese: { type: Type.STRING, description: 'Nghĩa tiếng Việt' },
                   },
+                  required: ['hanzi', 'pinyin', 'vietnamese'],
                 },
                 suggestions: {
                   type: Type.ARRAY,
-                  description: '2-3 câu gợi ý cho học viên nói tiếp',
+                  description: '2-3 câu gợi ý cho học viên trả lời câu hỏi tiếp theo',
                   items: {
                     type: Type.OBJECT,
                     properties: {
@@ -286,6 +261,7 @@ Hãy phân tích và trả về JSON:
                       pinyin: { type: Type.STRING },
                       vietnamese: { type: Type.STRING },
                     },
+                    required: ['hanzi', 'pinyin', 'vietnamese'],
                   },
                 },
                 newWords: {
@@ -298,9 +274,11 @@ Hãy phân tích và trả về JSON:
                       pinyin: { type: Type.STRING },
                       vietnamese: { type: Type.STRING },
                     },
+                    required: ['hanzi', 'pinyin', 'vietnamese'],
                   },
                 },
               },
+              required: ['reply', 'suggestions'],
             },
           },
         });
@@ -337,7 +315,6 @@ Hãy phân tích và trả về JSON:
     try {
       parsedResult = JSON.parse(cleanJson);
     } catch (parseErr) {
-      // Auto-repair JSON thiếu ngoặc
       let repaired = cleanJson;
       const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
       if (quoteCount % 2 !== 0) repaired += '"';
@@ -351,17 +328,15 @@ Hãy phân tích và trả về JSON:
     }
 
     // Chuẩn hóa pinyin bằng pinyin-pro để đảm bảo không bị thiếu dấu
-    if (parsedResult.correctSentence?.hanzi && !parsedResult.correctSentence.pinyin) {
-      parsedResult.correctSentence.pinyin = getSafePinyin(parsedResult.correctSentence.hanzi);
-    }
     if (parsedResult.reply?.hanzi && !parsedResult.reply.pinyin) {
       parsedResult.reply.pinyin = getSafePinyin(parsedResult.reply.hanzi);
     }
-    if (parsedResult.chunks && Array.isArray(parsedResult.chunks)) {
-      parsedResult.chunks.forEach((chunk: any) => {
-        if (chunk.hanzi && !chunk.pinyin) {
-          chunk.pinyin = getSafePinyin(chunk.hanzi);
-        }
+    if (parsedResult.evaluation?.correctedHanzi && !parsedResult.evaluation.correctedPinyin) {
+      parsedResult.evaluation.correctedPinyin = getSafePinyin(parsedResult.evaluation.correctedHanzi);
+    }
+    if (parsedResult.suggestions && Array.isArray(parsedResult.suggestions)) {
+      parsedResult.suggestions.forEach((s: any) => {
+        if (s.hanzi && !s.pinyin) s.pinyin = getSafePinyin(s.hanzi);
       });
     }
 
@@ -383,7 +358,6 @@ Hãy phân tích và trả về JSON:
           }),
         });
       } catch (incErr) {
-        // Fallback upsert
         fetch(`${supabaseUrl}/rest/v1/daily_activity`, {
           method: 'POST',
           headers: {

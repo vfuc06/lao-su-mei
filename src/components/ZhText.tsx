@@ -1,6 +1,7 @@
 import React from 'react';
 import { Volume2, Turtle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { playZhAudio } from '../lib/audio';
 
 interface ZhTextProps {
   hanzi: string;
@@ -24,24 +25,16 @@ export const ZhText: React.FC<ZhTextProps> = ({
   const handlePlayNormal = () => {
     if (onSpeak) {
       onSpeak(hanzi, settings.speechRate || 1.0);
-    } else if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(hanzi);
-      u.lang = 'zh-CN';
-      u.rate = settings.speechRate || 1.0;
-      window.speechSynthesis.speak(u);
+    } else {
+      playZhAudio(hanzi, settings.speechRate || 1.0);
     }
   };
 
   const handlePlaySlow = () => {
     if (onSpeak) {
       onSpeak(hanzi, 0.7);
-    } else if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(hanzi);
-      u.lang = 'zh-CN';
-      u.rate = 0.7;
-      window.speechSynthesis.speak(u);
+    } else {
+      playZhAudio(hanzi, 0.7);
     }
   };
 
