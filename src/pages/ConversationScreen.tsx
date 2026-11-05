@@ -43,6 +43,20 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isTextInputOpen, setIsTextInputOpen] = useState(false);
   const [textInputValue, setTextInputValue] = useState('');
+  const [isIOSStandalone, setIsIOSStandalone] = useState(false);
+  const [showIOSHelpModal, setShowIOSHelpModal] = useState(false);
+
+  useEffect(() => {
+    try {
+      const isStandalone =
+        (window.navigator as any).standalone === true ||
+        window.matchMedia('(display-mode: standalone)').matches;
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS && isStandalone) {
+        setIsIOSStandalone(true);
+      }
+    } catch (e) {}
+  }, []);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isInitializedRef = useRef(false);
@@ -204,11 +218,22 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
 
   // Đổi trạng thái Mic
   const handleToggleMic = () => {
+    if (isIOSStandalone) {
+      setShowIOSHelpModal(true);
+      return;
+    }
     if (isListening) {
       stopListening();
     } else {
-      stopSpeaking();
-      startListening(speechLang);
+      if (isSpeechPlaying) {
+        stopSpeaking();
+        // Cho iOS audio session 150ms để giải phóng trước khi bật mic
+        setTimeout(() => {
+          startListening(speechLang);
+        }, 150);
+      } else {
+        startListening(speechLang);
+      }
     }
   };
 
@@ -259,6 +284,35 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
         onOpenSettings={() => setIsSettingsOpen(true)}
         onFinishSession={() => setIsSummaryOpen(true)}
       />
+
+      {/* Cảnh báo riêng cho người dùng iPhone mở từ màn hình chính */}
+      {isIOSStandalone && (
+        <div className="bg-amber-600 text-white px-3 py-2 text-xs flex items-center justify-between shadow-sm z-20">
+          <span className="leading-tight pr-2">
+            📱 <b>Lưu ý iPhone:</b> Apple chặn Micro khi mở từ Màn hình chính. Hãy mở trên tab <b>Safari</b> để nói chuyện!
+          </span>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <a
+              href={window.location.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2.5 py-1 bg-white text-amber-900 rounded-lg font-bold text-[11px] shadow-xs active:scale-95 inline-block"
+            >
+              Mở Safari
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                alert('Đã chép link! Hãy mở Safari và dán vào thanh địa chỉ nhé.');
+              }}
+              className="px-2 py-1 bg-amber-800 text-amber-100 rounded-lg font-semibold text-[11px] active:scale-95"
+            >
+              Chép link
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Thông báo lỗi / Quota / Mic nếu có */}
       {(errorBanner || sttError) && (
@@ -393,6 +447,63 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
                 <Send className="w-4 h-4" />
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal hướng dẫn khắc phục lỗi micro trên iPhone khi mở từ Màn hình chính */}
+      {showIOSHelpModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-4">
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-3 text-2xl">
+                📱
+              </div>
+              <h3 className="text-base font-bold text-stone-900">
+                Lưu ý Micro trên iPhone
+              </h3>
+              <p className="text-xs text-stone-600 mt-1.5 leading-relaxed">
+                Apple <b>không cấp quyền micro</b> cho bất kỳ trang web nào khi mở từ <b>Màn hình chính</b> (Add to Home Screen).
+              </p>
+            </div>
+
+            <div className="bg-amber-50/80 rounded-2xl p-3 border border-amber-200/80 text-xs text-stone-700 space-y-1.5">
+              <div className="font-bold text-amber-950">👉 Cách để nói chuyện bình thường:</div>
+              <p>1. Mở ứng dụng <b>Safari</b> trên iPhone.</p>
+              <p>2. Dán link trang web vào Safari và bấm Go.</p>
+              <p>3. Trong Safari: Bấm nút <b>Chia sẻ</b> (hình vuông mũi tên lên) &gt; Chọn <b>"Thêm dấu trang"</b> (Bookmark) để lưu lại thay vì ghim ra màn hình chính.</p>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <a
+                href={window.location.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-sm text-center block shadow-md active:scale-98 transition-transform"
+              >
+                Mở trong Safari ngay
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  alert('Đã chép link! Bạn hãy mở Safari và dán vào thanh địa chỉ nhé.');
+                }}
+                className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-2xl font-semibold text-xs active:scale-98 transition-colors"
+              >
+                Sao chép link web
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowIOSHelpModal(false);
+                  setIsTextInputOpen(true);
+                }}
+                className="w-full py-2 text-stone-500 font-medium text-xs hover:text-stone-800"
+              >
+                Tôi muốn tiếp tục bằng cách Gõ chữ
+              </button>
+            </div>
           </div>
         </div>
       )}

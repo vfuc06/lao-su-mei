@@ -21,6 +21,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onSelectLevel,
   onSelectScenario,
 }) => {
+  const [isIOSStandalone, setIsIOSStandalone] = React.useState(false);
+
+  React.useEffect(() => {
+    try {
+      const isStandalone =
+        (window.navigator as any).standalone === true ||
+        window.matchMedia('(display-mode: standalone)').matches;
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS && isStandalone) {
+        setIsIOSStandalone(true);
+      }
+    } catch (e) {}
+  }, []);
+
   return (
     <div className="min-h-screen bg-stone-50 pb-12">
       {/* Header Banner */}
@@ -41,6 +55,41 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </div>
 
       <div className="max-w-md mx-auto px-4 -mt-4">
+        {/* Cảnh báo riêng cho người dùng iPhone mở từ màn hình chính */}
+        {isIOSStandalone && (
+          <div className="bg-amber-100 border border-amber-300 rounded-3xl p-4 mb-4 text-xs text-amber-950 shadow-sm flex flex-col gap-2 animate-fade-in">
+            <div className="font-bold flex items-center gap-1.5 text-amber-950 text-sm">
+              <span>📱 Lưu ý quan trọng cho iPhone:</span>
+            </div>
+            <p className="leading-relaxed">
+              Bạn đang mở từ <b>Màn hình chính</b>. Apple chặn micro của tất cả trang web khi mở ở chế độ này.
+            </p>
+            <p className="leading-relaxed text-[11px] text-amber-800">
+              👉 Hãy mở link trực tiếp trên tab <b>Safari</b> để nói chuyện với Lão Sư Mei nhé!
+            </p>
+            <div className="flex gap-2 pt-1">
+              <a
+                href={window.location.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-center flex-1 shadow-xs active:scale-95 text-xs transition-colors"
+              >
+                Mở trong Safari
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  alert('Đã chép link! Bạn hãy mở trình duyệt Safari và dán link vào nhé.');
+                }}
+                className="px-3 py-2 bg-white border border-amber-300 hover:bg-amber-50 text-amber-900 rounded-xl font-bold text-center flex-1 shadow-xs active:scale-95 text-xs transition-colors"
+              >
+                Sao chép link
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Chọn trình độ HSK */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-stone-200/90 mb-5">
           <label className="text-xs font-bold text-stone-700 uppercase tracking-wider block mb-2.5">

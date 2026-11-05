@@ -169,12 +169,20 @@ export function useSpeechRecognition({
         recognition.onerror = (event: any) => {
           console.warn('Speech recognition error:', event.error);
           let vietnameseMsg = 'Có lỗi nhận diện âm thanh.';
-          if (event.error === 'not-allowed' || event.error === 'permission-denied') {
-            vietnameseMsg = 'Microphone chưa được cấp quyền! Vui lòng bấm vào biểu tượng ổ khóa/mic trên thanh trình duyệt để Bật Micro.';
+
+          if (event.error === 'service-not-allowed') {
+            vietnameseMsg = 'Apple iOS chặn tính năng micro khi ghim vào Màn hình chính. Bạn hãy mở link trực tiếp bằng tab trình duyệt Safari hoặc Chrome nhé!';
+          } else if (event.error === 'audio-capture') {
+            vietnameseMsg = 'Không thể kết nối với micro. Hãy kiểm tra: Cài đặt iPhone > Safari > Micro > Bật Cho phép nhé!';
+          } else if (event.error === 'not-allowed' || event.error === 'permission-denied') {
+            vietnameseMsg = 'Microphone chưa được cấp quyền! Trên iPhone: Vào Cài đặt > Safari > Micro > Chọn "Cho phép".';
           } else if (event.error === 'no-speech') {
             vietnameseMsg = 'Không nghe thấy tiếng nói. Hãy thử bấm lại và nói to hơn nhé!';
           } else if (event.error === 'network') {
-            vietnameseMsg = 'Mạng bị gián đoạn khi nhận diện giọng nói.';
+            vietnameseMsg = 'Mạng nhận diện giọng nói bị gián đoạn. Hãy kiểm tra kết nối Wifi/4G nhé!';
+          } else if (event.error === 'aborted') {
+            // Đã dừng bình thường, không báo lỗi
+            return;
           }
 
           setErrorMessage(vietnameseMsg);
