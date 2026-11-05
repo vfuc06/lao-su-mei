@@ -1,99 +1,128 @@
-import React, { useState, useEffect } from 'react';
-import { HSKLevel, Scenario, UserSettings } from './types';
+import React, { useState } from 'react';
+import { TabType, Scenario } from './types';
 import { SCENARIOS } from './lib/scenarios';
-import { HomeScreen } from './pages/HomeScreen';
+import { useAuth } from './contexts/AuthContext';
+import { AppHeader } from './components/AppHeader';
+import { BottomNav } from './components/BottomNav';
+import { AuthModal } from './components/AuthModal';
+import { SettingsSheet } from './components/SettingsSheet';
+import { MistakesModal } from './components/MistakesModal';
+import { AiChatTab } from './pages/AiChatTab';
+import { ShadowingTab } from './pages/ShadowingTab';
+import { FlashcardsTab } from './pages/FlashcardsTab';
+import { PhrasesTab } from './pages/PhrasesTab';
 import { ConversationScreen } from './pages/ConversationScreen';
 
-const DEFAULT_SETTINGS: UserSettings = {
-  speechRate: 0.9,
-  autoPlaySpeech: true,
-  showPinyin: true,
-  showVietnamese: true,
-  correctionMode: 'gentle',
-  selectedVoiceURI: null,
-};
-
 export default function App() {
-  // Trạng thái màn hình: 'home' | 'conversation'
-  const [currentScreen, setCurrentScreen] = useState<'home' | 'conversation'>('home');
-  const [selectedScenario, setSelectedScenario] = useState<Scenario>(SCENARIOS[0]);
+  const { user, settings, updateSettings } = useAuth();
 
-  // Trình độ HSK (lưu vào localStorage)
-  const [level, setLevel] = useState<HSKLevel>(() => {
-    try {
-      const saved = localStorage.getItem('chinese_tutor_level');
-      if (saved === 'HSK1' || saved === 'HSK2' || saved === 'HSK3') {
-        return saved;
-      }
-    } catch (e) {
-      // bỏ qua lỗi đọc localStorage
+  // Tab điều hướng dưới (4 tab)
+  const [currentTab, setCurrentTab] = useState<TabType>('ai_chat');
+
+  // Trạng thái hội thoại AI
+  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
+
+  // Trạng thái các Modal
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isMistakesOpen, setIsMistakesOpen] = useState(false);
+  const [authMessage, setAuthMessage] = useState<string | undefined>();
+
+  // Danh sách voice trên thiết bị
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const updateVoices = () => {
+        const all = window.speechSynthesis.getVoices();
+        const zh = all.filter((v) => v.lang.includes('zh') || v.lang.includes('cmn'));
+        setVoices(zh);
+      };
+      updateVoices();
+      window.speechSynthesis.onvoiceschanged = updateVoices;
     }
-    return 'HSK1';
-  });
+  }, []);
 
-  // Cài đặt người dùng (lưu vào localStorage)
-  const [settings, setSettings] = useState<UserSettings>(() => {
-    try {
-      const saved = localStorage.getItem('chinese_tutor_settings');
-      if (saved) {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
-      }
-    } catch (e) {
-      // bỏ qua lỗi
-    }
-    return DEFAULT_SETTINGS;
-  });
-
-  // Tự động lưu level vào localStorage
-  const handleSelectLevel = (newLevel: HSKLevel) => {
-    setLevel(newLevel);
-    try {
-      localStorage.setItem('chinese_tutor_level', newLevel);
-    } catch (e) {}
-  };
-
-  // Cập nhật cài đặt
-  const handleUpdateSettings = (newSettings: Partial<UserSettings>) => {
-    setSettings((prev) => {
-      const updated = { ...prev, ...newSettings };
-      try {
-        localStorage.setItem('chinese_tutor_settings', JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
-  };
-
-  // Chọn tình huống và vào phòng hội thoại
   const handleSelectScenario = (scenario: Scenario) => {
+    if (!user) {
+      setAuthMessage('Tính năng nói với AI yêu cầu đăng nhập để lưu tiến trình và sử dụng hạn mức mỗi ngày.');
+      setIsAuthOpen(true);
+      return;
+    }
     setSelectedScenario(scenario);
-    setCurrentScreen('conversation');
-    try {
-      localStorage.setItem('chinese_tutor_scenario', scenario.id);
-    } catch (e) {}
   };
 
-  // Quay lại trang chủ
-  const handleBackToHome = () => {
-    setCurrentScreen('home');
+  const handlePracticeMistakePhrase = (hanzi: string) => {
+    setCurrentTab('shadowing');
   };
 
   return (
-    <main className="w-full min-h-screen bg-stone-50 text-stone-900">
-      {currentScreen === 'home' ? (
-        <HomeScreen
-          level={level}
-          onSelectLevel={handleSelectLevel}
-          onSelectScenario={handleSelectScenario}
-        />
-      ) : (
-        <ConversationScreen
-          scenario={selectedScenario}
-          level={level}
-          settings={settings}
-          onUpdateSettings={handleUpdateSettings}
-          onBackToHome={handleBackToHome}
-        />
+    <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col font-sans selection:bg-red-200">
+      {/* 1. Header luôn cố định ở trên */}
+      <AppHeader
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenMistakes={() => setIsMistakesOpen(true)}
+        onOpenAuth={() => {
+          setAuthMessage(undefined);
+          setIsAuthOpen(true);
+        }}
+      />
+
+      {/* 2. Nội dung chính hiển thị theo Tab hoặc theo Phòng hội thoại */}
+      <main className="flex-1 w-full">
+        {selectedScenario ? (
+          <ConversationScreen
+            scenario={selectedScenario}
+            level="HSK1"
+            settings={settings}
+            onUpdateSettings={updateSettings}
+            onBackToHome={() => setSelectedScenario(null)}
+          />
+        ) : (
+          <>
+            {currentTab === 'ai_chat' && (
+              <AiChatTab
+                onSelectScenario={handleSelectScenario}
+                onNavigateTab={(tab) => setCurrentTab(tab)}
+                onOpenMistakes={() => setIsMistakesOpen(true)}
+                onRequireAuth={() => {
+                  setAuthMessage('Tính năng trò chuyện 1-1 với AI cần đăng nhập để quản lý hạn mức ngày và lưu tiến trình.');
+                  setIsAuthOpen(true);
+                }}
+              />
+            )}
+            {currentTab === 'shadowing' && <ShadowingTab />}
+            {currentTab === 'flashcards' && <FlashcardsTab />}
+            {currentTab === 'phrases' && <PhrasesTab />}
+          </>
+        )}
+      </main>
+
+      {/* 3. Thanh điều hướng dưới 4 tab (ẩn khi đang trong phòng hội thoại) */}
+      {!selectedScenario && (
+        <BottomNav currentTab={currentTab} onSelectTab={setCurrentTab} />
       )}
-    </main>
+
+      {/* 4. Các Modal & Sheet */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        initialMessage={authMessage}
+      />
+
+      <SettingsSheet
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onUpdateSettings={updateSettings}
+        availableVoices={voices}
+      />
+
+      <MistakesModal
+        isOpen={isMistakesOpen}
+        onClose={() => setIsMistakesOpen(false)}
+        onPracticePhrase={handlePracticeMistakePhrase}
+      />
+    </div>
   );
 }
