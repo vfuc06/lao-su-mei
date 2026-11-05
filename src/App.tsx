@@ -21,6 +21,7 @@ export default function App() {
 
   // Trạng thái hội thoại AI
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
+  const [practicePhrase, setPracticePhrase] = useState<{ q?: string; a: string } | undefined>();
 
   // Trạng thái các Modal
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -53,6 +54,8 @@ export default function App() {
   };
 
   const handlePracticeMistakePhrase = (hanzi: string) => {
+    setPracticePhrase({ a: hanzi });
+    setIsMistakesOpen(false);
     setCurrentTab('shadowing');
   };
 
@@ -91,9 +94,16 @@ export default function App() {
                 }}
               />
             )}
-            {currentTab === 'shadowing' && <ShadowingTab />}
+            {currentTab === 'shadowing' && <ShadowingTab initialPhrase={practicePhrase} />}
             {currentTab === 'flashcards' && <FlashcardsTab />}
-            {currentTab === 'phrases' && <PhrasesTab />}
+            {currentTab === 'phrases' && (
+              <PhrasesTab
+                onPracticePair={(qHanzi, aHanzi) => {
+                  setPracticePhrase({ q: qHanzi, a: aHanzi });
+                  setCurrentTab('shadowing');
+                }}
+              />
+            )}
           </>
         )}
       </main>
