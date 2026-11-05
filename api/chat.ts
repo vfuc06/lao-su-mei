@@ -115,6 +115,7 @@ Người học cần:
 
 # ĐỊNH DẠNG ĐẦU RA BẮT BUỘC:
 Chỉ trả về JSON theo đúng schema.
+- Giữ lời nhận xét và câu nói ngắn gọn, súc tích (1-2 câu), tự nhiên, tập trung vào phản xạ giao tiếp.
 - "hanzi" và "correctedHanzi": BẮT BUỘC là CHỮ HÁN GIẢN THỂ (汉字 - chữ tượng hình, ví dụ: 好的，没问题！). TUYỆT ĐỐI KHÔNG để pinyin hoặc chữ La-tinh vào các trường này.
 - "pinyin" và "correctedPinyin": Phiên âm pinyin có dấu thanh chuẩn (Nǐ hǎo!).
 - "vietnamese": Dịch nghĩa tiếng Việt tự nhiên.`;
@@ -194,7 +195,7 @@ Chỉ trả về JSON theo đúng schema.
           config: {
             systemInstruction,
             responseMimeType: 'application/json',
-            maxOutputTokens: 380,
+            maxOutputTokens: 900,
             responseSchema: {
               type: Type.OBJECT,
               properties: {
@@ -296,7 +297,26 @@ Chỉ trả về JSON theo đúng schema.
       cleanJson = cleanJson.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
     }
 
-    const jsonResult = JSON.parse(cleanJson);
+    let jsonResult: any;
+    try {
+      jsonResult = JSON.parse(cleanJson);
+    } catch (parseErr) {
+      // Tự động sửa lỗi thiếu ngoặc đóng nếu model bị cắt ngang
+      try {
+        let repaired = cleanJson;
+        const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
+        if (quoteCount % 2 !== 0) repaired += '"';
+        const openBraces = (repaired.match(/\{/g) || []).length;
+        const closeBraces = (repaired.match(/\}/g) || []).length;
+        const openBrackets = (repaired.match(/\[/g) || []).length;
+        const closeBrackets = (repaired.match(/\]/g) || []).length;
+        for (let i = 0; i < openBrackets - closeBrackets; i++) repaired += ']';
+        for (let i = 0; i < openBraces - closeBraces; i++) repaired += '}';
+        jsonResult = JSON.parse(repaired);
+      } catch (repairErr) {
+        throw new Error('Dữ liệu phản hồi chưa hoàn chỉnh, vui lòng bấm "Thử lại" giúp Mei nhé!');
+      }
+    }
 
     if (jsonResult.evaluation && !jsonResult.feedback) {
       jsonResult.feedback = {
