@@ -1,0 +1,182 @@
+[
+  {
+    "hanzi": "开会",
+    "pinyin": "kāi huì",
+    "vi": "Họp, mở cuộc họp",
+    "category": "meeting",
+    "example_hanzi": "大家请注意，我们十点准时在二号会议室开会。",
+    "example_pinyin": "Dàjiā qǐng zhùyì, wǒmen shí diǎn zhǔnshí zài èr hào huìyìshì kāi huì.",
+    "example_vi": "Mọi người chú ý, đúng mười giờ chúng ta họp ở phòng họp số hai."
+  },
+  {
+    "hanzi": "议程",
+    "pinyin": "yìchéng",
+    "vi": "Nội dung cuộc họp, nghị trình",
+    "category": "meeting",
+    "example_hanzi": "今天的会议主要有三个核心议程。",
+    "example_pinyin": "Jīntiān de huìyì zhǔyào yǒu sān gè héxīn yìchéng.",
+    "example_vi": "Cuộc họp hôm nay chủ yếu có ba nội dung cốt lõi."
+  },
+  {
+    "hanzi": "发言",
+    "pinyin": "fā yán",
+    "vi": "Phát biểu ý kiến",
+    "category": "meeting",
+    "example_hanzi": "接下来请市场部负责人发言。",
+    "example_pinyin": "Jiēxiàlái qǐng shìchǎngbù fùzérén fā yán.",
+    "example_vi": "Tiếp theo xin mời trưởng bộ phận thị trường phát biểu."
+  },
+  {
+    "hanzi": "赞同",
+    "pinyin": "zàntóng",
+    "vi": "Tán thành, đồng ý",
+    "category": "meeting",
+    "example_hanzi": "我非常赞同张经理刚才提出的方案。",
+    "example_pinyin": "Wǒ fēicháng zàntóng Zhāng jīnglǐ gāngcái tíchū de fāng'àn.",
+    "example_vi": "Tôi rất tán thành với phương án quản lý Trương vừa nêu ra."
+  },
+  {
+    "hanzi": "纪要",
+    "pinyin": "jìyào",
+    "vi": "Biên bản cuộc họp",
+    "category": "meeting",
+    "example_hanzi": "会后请小李整理好会议纪要并发给大家。",
+    "example_pinyin": "Huì hòu qǐng Xiǎo Lǐ zhěnglǐ hǎo huìyì jìyào bìng fā gěi dàjiā.",
+    "example_vi": "Sau cuộc họp phiền Tiểu Lý tổng hợp biên bản họp và gửi cho mọi người."
+  },
+  {
+    "hanzi": "汇报",
+    "pinyin": "huìbào",
+    "vi": "Báo cáo tiến độ / tình hình (với cấp trên)",
+    "category": "report",
+    "example_hanzi": "王总，我想向您简要汇报一下这个月的销售情况。",
+    "example_pinyin": "Wáng zǒng, wǒ xiǎng xiàng nín jiǎnyào huìbào yíxià zhège yuè de xiāoshòu qíngkuàng.",
+    "example_vi": "Tổng giám đốc Vương, em muốn báo cáo vắn tắt với anh về tình hình doanh số tháng này."
+  },
+  {
+    "hanzi": "进度",
+    "pinyin": "jìndù",
+    "vi": "Tiến độ công việc",
+    "category": "report",
+    "example_hanzi": "目前的开发进度比预期提前了两天。",
+    "example_pinyin": "Mùqián de kāifā jìndù bǐ yùqī tíqián le liǎng tiān.",
+    "example_vi": "Tiến độ phát triển hiện tại đang sớm hơn dự kiến hai ngày."
+  },
+  {
+    "hanzi": "截止日期",
+    "pinyin": "jiézhǐ rìqī",
+    "vi": "Hạn chót, deadline",
+    "category": "report",
+    "example_hanzi": "这份报告的截止日期是本周五下午五点。",
+    "example_pinyin": "Zhè fèn bàogào de jiézhǐ rìqī shì běn zhōu wǔ xiàwǔ wǔ diǎn.",
+    "example_vi": "Hạn chót nộp bản báo cáo này là 5 giờ chiều thứ sáu tuần này."
+  },
+  {
+    "hanzi": "落实",
+    "pinyin": "luòshí",
+    "vi": "Triển khai thực hiện, theo dõi thực thi",
+    "category": "report",
+    "example_hanzi": "各项任务必须明确责任人并抓紧落实。",
+    "example_pinyin": "Gè xiàng rènwu bìxū míngquè zérénrén bìng zhuājǐn luòshí.",
+    "example_vi": "Từng hạng mục nhiệm vụ cần làm rõ người chịu trách nhiệm và khẩn trương triển khai."
+  },
+  {
+    "hanzi": "请假",
+    "pinyin": "qǐng jià",
+    "vi": "Xin nghỉ phép",
+    "category": "office",
+    "example_hanzi": "经理，我明天家里有急事，想请一天事假。",
+    "example_pinyin": "Jīnglǐ, wǒ míngtiān jiālǐ yǒu jíshì, xiǎng qǐng yì tiān shìjià.",
+    "example_vi": "Quản lý, ngày mai gia đình tôi có việc gấp, tôi muốn xin nghỉ phép một ngày."
+  },
+  {
+    "hanzi": "加班",
+    "pinyin": "jiā bān",
+    "vi": "Tăng ca, làm thêm giờ",
+    "category": "office",
+    "example_hanzi": "为了按时上线项目，今晚我们需要加班两个小时。",
+    "example_pinyin": "Wèile ànshí shàngxiàn xiàngmù, jīnwǎn wǒmen xūyào jiā bān liǎng gè xiǎoshí.",
+    "example_vi": "Để đưa dự án lên kịp hạn, tối nay chúng ta cần tăng ca hai tiếng."
+  },
+  {
+    "hanzi": "报销",
+    "pinyin": "bàoxiāo",
+    "vi": "Thanh toán công tác phí, hoàn trả chi phí",
+    "category": "office",
+    "example_hanzi": "请把出差的车票和发票留好，回来统一报销。",
+    "example_pinyin": "Qǐng bǎ chūchāi de chēpiào hé fāpiào liú hǎo, huílái tǒngyī bàoxiāo.",
+    "example_vi": "Hãy giữ lại vé tàu xe và hóa đơn công tác, khi về sẽ làm thủ tục thanh toán một thể."
+  },
+  {
+    "hanzi": "入职",
+    "pinyin": "rù zhí",
+    "vi": "Nhận việc, gia nhập công ty",
+    "category": "office",
+    "example_hanzi": "祝贺你顺利通过面试，下周一办理入职手续。",
+    "example_pinyin": "Zhùhè nǐ shùnlì tōngguò miànshì, xià zhōu yī bànlǐ rù zhí shǒuxù.",
+    "example_vi": "Chúc mừng bạn đã thuận lợi vượt qua phỏng vấn, thứ hai tuần tới làm thủ tục nhận việc."
+  },
+  {
+    "hanzi": "报价",
+    "pinyin": "bào jià",
+    "vi": "Báo giá",
+    "category": "client",
+    "example_hanzi": "我们稍后会把最新产品的报价单发到您的邮箱。",
+    "example_pinyin": "Wǒmen shāohòu huì bǎ zuìxīn chǎnpǐn de bàojiàdān fā dào nín de yóuxiāng.",
+    "example_vi": "Một lát nữa chúng tôi sẽ gửi bảng báo giá sản phẩm mới nhất vào email của quý khách."
+  },
+  {
+    "hanzi": "合作",
+    "pinyin": "hézuò",
+    "vi": "Hợp tác",
+    "category": "client",
+    "example_hanzi": "非常期待未来能与贵公司有更深入的合作。",
+    "example_pinyin": "Fēicháng qīdài wèilái néng yǔ guì gōngsī yǒu gèng shēnrù de hézuò.",
+    "example_vi": "Rất mong đợi trong tương lai có thể hợp tác sâu rộng hơn cùng quý công ty."
+  },
+  {
+    "hanzi": "合同",
+    "pinyin": "hétong",
+    "vi": "Hợp đồng",
+    "category": "client",
+    "example_hanzi": "请法务部仔细审核一下这份合同的条款。",
+    "example_pinyin": "Qǐng fǎwùbù zǐxì shěnhé yíxià zhè fèn hétong de tiáokuǎn.",
+    "example_vi": "Xin mời bộ phận pháp chế rà soát kỹ các điều khoản của bản hợp đồng này."
+  },
+  {
+    "hanzi": "折扣",
+    "pinyin": "zhékòu",
+    "vi": "Chiết khấu, giảm giá",
+    "category": "client",
+    "example_hanzi": "如果这次订购数量超过一千件，我们可以提供九折优惠。",
+    "example_pinyin": "Rúguǒ zhè cì dìnggòu shùliàng chāoguò yì qiān jiàn, wǒmen kěyǐ tígōng jiǔ zhé yōuhuì.",
+    "example_vi": "Nếu đợt này số lượng đặt hàng vượt quá một nghìn chiếc, chúng tôi có thể áp dụng mức chiết khấu 10%."
+  },
+  {
+    "hanzi": "投诉",
+    "pinyin": "tóusù",
+    "vi": "Khiếu nại, phản ánh bức xúc",
+    "category": "operation",
+    "example_hanzi": "客服部门正在全力处理昨天的客户投诉。",
+    "example_pinyin": "Kèfú bùmén zhèngzài quánlì chǔlǐ zuótiān de kèhù tóusù.",
+    "example_vi": "Bộ phận chăm sóc khách hàng đang nỗ lực hết mình để xử lý khiếu nại của khách ngày hôm qua."
+  },
+  {
+    "hanzi": "故障",
+    "pinyin": "gùzhàng",
+    "vi": "Sự cố, hỏng hóc kỹ thuật",
+    "category": "operation",
+    "example_hanzi": "服务器出现临时故障，技术团队正在紧急修复。",
+    "example_pinyin": "Fúwùqì chūxiàn línshí gùzhàng, jìshù tuánduì zhèngzài jǐnjí xiūfù.",
+    "example_vi": "Máy chủ gặp sự cố tạm thời, đội ngũ kỹ thuật đang khẩn cấp khắc phục."
+  },
+  {
+    "hanzi": "方案",
+    "pinyin": "fāng'àn",
+    "vi": "Phương án, giải pháp",
+    "category": "operation",
+    "example_hanzi": "针对这个突发情况，我们制定了备用方案。",
+    "example_pinyin": "Zhēnduì zhège tūfā qíngkuàng, wǒmen zhìdìng le bèiyòng fāng'àn.",
+    "example_vi": "Đối với tình huống đột xuất này, chúng tôi đã xây dựng phương án dự phòng."
+  }
+]

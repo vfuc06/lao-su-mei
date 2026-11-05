@@ -1,0 +1,317 @@
+[
+  {
+    "hanzi": "你好",
+    "pinyin": "nǐ hǎo",
+    "vi": "Xin chào",
+    "hsk_level": 1,
+    "example_hanzi": "你好！很高兴认识你。",
+    "example_pinyin": "Nǐ hǎo! Hěn gāoxìng rènshí nǐ.",
+    "example_vi": "Xin chào! Rất vui được quen biết bạn."
+  },
+  {
+    "hanzi": "谢谢",
+    "pinyin": "xièxie",
+    "vi": "Cảm ơn",
+    "hsk_level": 1,
+    "example_hanzi": "谢谢你的热情帮助！",
+    "example_pinyin": "Xièxie nǐ de rèqíng bāngzhù!",
+    "example_vi": "Cảm ơn sự giúp đỡ nhiệt tình của bạn!"
+  },
+  {
+    "hanzi": "不客气",
+    "pinyin": "bú kèqi",
+    "vi": "Không có gì, đừng khách sáo",
+    "hsk_level": 1,
+    "example_hanzi": "别客气，这只是举手之劳。",
+    "example_pinyin": "Bié kèqi, zhè zhǐshì jǔshǒuzhīláo.",
+    "example_vi": "Đừng khách sáo, đây chỉ là việc tiện tay thôi."
+  },
+  {
+    "hanzi": "对不起",
+    "pinyin": "duìbuqǐ",
+    "vi": "Xin lỗi",
+    "hsk_level": 1,
+    "example_hanzi": "对不起，我来晚了五分钟。",
+    "example_pinyin": "Duìbuqǐ, wǒ lái wǎn le wǔ fēnzhōng.",
+    "example_vi": "Xin lỗi, tôi đến muộn mất năm phút."
+  },
+  {
+    "hanzi": "没关系",
+    "pinyin": "méi guānxi",
+    "vi": "Không sao đâu, không hề gì",
+    "hsk_level": 1,
+    "example_hanzi": "没关系，我们刚刚才开始。",
+    "example_pinyin": "Méi guānxi, wǒmen gānggāng cái kāishǐ.",
+    "example_vi": "Không sao đâu, chúng tôi cũng vừa mới bắt đầu thôi."
+  },
+  {
+    "hanzi": "吃饭",
+    "pinyin": "chī fàn",
+    "vi": "Ăn cơm, dùng bữa",
+    "hsk_level": 1,
+    "example_hanzi": "你今天中午想吃什么？",
+    "example_pinyin": "Nǐ jīntiān zhōngwǔ xiǎng chī shénme?",
+    "example_vi": "Trưa nay bạn muốn ăn món gì?"
+  },
+  {
+    "hanzi": "喝水",
+    "pinyin": "hē shuǐ",
+    "vi": "Uống nước",
+    "hsk_level": 1,
+    "example_hanzi": "请坐，喝杯温水吧。",
+    "example_pinyin": "Qǐng zuò, hē bēi wēn shuǐ ba.",
+    "example_vi": "Mời ngồi, uống một cốc nước ấm nhé."
+  },
+  {
+    "hanzi": "多少钱",
+    "pinyin": "duōshao qián",
+    "vi": "Bao nhiêu tiền",
+    "hsk_level": 1,
+    "example_hanzi": "请问这瓶矿泉水多少钱？",
+    "example_pinyin": "Qǐngwèn zhè píng kuàngquánshuǐ duōshao qián?",
+    "example_vi": "Xin hỏi chai nước khoáng này bao nhiêu tiền?"
+  },
+  {
+    "hanzi": "太贵了",
+    "pinyin": "tài guì le",
+    "vi": "Đắt quá rồi",
+    "hsk_level": 1,
+    "example_hanzi": "这个太贵了，能不能便宜一点？",
+    "example_pinyin": "Zhège tài guì le, néng bu néng piányi yìdiǎn?",
+    "example_vi": "Cái này đắt quá, có thể rẻ hơn một chút được không?"
+  },
+  {
+    "hanzi": "再见",
+    "pinyin": "zàijiàn",
+    "vi": "Tạm biệt",
+    "hsk_level": 1,
+    "example_hanzi": "明天见，路上慢点！",
+    "example_pinyin": "Míngtiān jiàn, lùshang màn diǎn!",
+    "example_vi": "Hẹn mai gặp lại, đi đường cẩn thận nhé!"
+  },
+  {
+    "hanzi": "买单",
+    "pinyin": "mǎi dān",
+    "vi": "Tính tiền, thanh toán",
+    "hsk_level": 2,
+    "example_hanzi": "服务员，我们要买单，扫码支付。",
+    "example_pinyin": "Fúwùyuán, wǒmen yào mǎi dān, sǎo mǎ zhīfù.",
+    "example_vi": "Phục vụ ơi, chúng tôi muốn thanh toán, quét mã chuyển khoản."
+  },
+  {
+    "hanzi": "打包",
+    "pinyin": "dǎ bāo",
+    "vi": "Gói mang về",
+    "hsk_level": 2,
+    "example_hanzi": "吃不完的菜请帮我打包。",
+    "example_pinyin": "Chī bu wán de cài qǐng bāng wǒ dǎ bāo.",
+    "example_vi": "Những món ăn không hết phiền bạn đóng gói mang về giúp tôi."
+  },
+  {
+    "hanzi": "打车",
+    "pinyin": "dǎ chē",
+    "vi": "Bắt xe taxi, gọi xe",
+    "hsk_level": 2,
+    "example_hanzi": "下雨天很难打车，我们坐地铁吧。",
+    "example_pinyin": "Xiàyǔ tiān hěn nán dǎ chē, wǒmen zuò dìtiě ba.",
+    "example_vi": "Trời mưa rất khó bắt taxi, chúng mình đi tàu điện ngầm đi."
+  },
+  {
+    "hanzi": "便宜",
+    "pinyin": "piányi",
+    "vi": "Rẻ",
+    "hsk_level": 2,
+    "example_hanzi": "这家超市的水果又新鲜又便宜。",
+    "example_pinyin": "Zhè jiā chāoshì de shuǐguǒ yòu xīnxiān yòu piányi.",
+    "example_vi": "Hoa quả ở siêu thị này vừa tươi vừa rẻ."
+  },
+  {
+    "hanzi": "方便",
+    "pinyin": "fāngbiàn",
+    "vi": "Tiện lợi, thuận tiện",
+    "hsk_level": 2,
+    "example_hanzi": "现在出门用手机付款非常方便。",
+    "example_pinyin": "Xiànzài chūmén yòng shǒujī fùkuǎn fēicháng fāngbiàn.",
+    "example_vi": "Bây giờ ra ngoài trả tiền bằng điện thoại cực kỳ tiện lợi."
+  },
+  {
+    "hanzi": "准备",
+    "pinyin": "zhǔnbèi",
+    "vi": "Chuẩn bị",
+    "hsk_level": 2,
+    "example_hanzi": "你准备好出发了吗？",
+    "example_pinyin": "Nǐ zhǔnbèi hǎo chūfā le ma?",
+    "example_vi": "Bạn đã chuẩn bị xong để xuất phát chưa?"
+  },
+  {
+    "hanzi": "虽然",
+    "pinyin": "suīrán",
+    "vi": "Tuy rằng, mặc dù",
+    "hsk_level": 2,
+    "example_hanzi": "虽然有点累，但是我很高兴。",
+    "example_pinyin": "Suīrán yǒudiǎn lèi, dànshì wǒ hěn gāoxìng.",
+    "example_vi": "Tuy có hơi mệt, nhưng tôi rất vui."
+  },
+  {
+    "hanzi": "帮忙",
+    "pinyin": "bāng máng",
+    "vi": "Giúp đỡ",
+    "hsk_level": 2,
+    "example_hanzi": "你能帮我一个忙吗？",
+    "example_pinyin": "Nǐ néng bāng wǒ yí gè máng ma?",
+    "example_vi": "Bạn có thể giúp tôi một tay được không?"
+  },
+  {
+    "hanzi": "介绍",
+    "pinyin": "jièshào",
+    "vi": "Giới thiệu",
+    "hsk_level": 2,
+    "example_hanzi": "让我向大家自我介绍一下。",
+    "example_pinyin": "Ràng wǒ xiàng dàjiā zìwǒ jièshào yíxià.",
+    "example_vi": "Để tôi tự giới thiệu bản thân với mọi người một chút."
+  },
+  {
+    "hanzi": "欢迎",
+    "pinyin": "huānyíng",
+    "vi": "Hoan nghênh, chào mừng",
+    "hsk_level": 2,
+    "example_hanzi": "欢迎你来河内旅游！",
+    "example_pinyin": "Huānyíng nǐ lái Hénèi lǚyóu!",
+    "example_vi": "Chào mừng bạn đến Hà Nội du lịch!"
+  },
+  {
+    "hanzi": "联系",
+    "pinyin": "liánxì",
+    "vi": "Liên hệ, giữ liên lạc",
+    "hsk_level": 3,
+    "example_hanzi": "有事随时给我打电话或微信联系。",
+    "example_pinyin": "Yǒushì suíshí gěi wǒ dǎ diànhuà huò Wēixìn liánxì.",
+    "example_vi": "Có việc gì cứ gọi điện thoại hoặc nhắn WeChat cho tôi bất cứ lúc nào."
+  },
+  {
+    "hanzi": "解决",
+    "pinyin": "jiějué",
+    "vi": "Giải quyết",
+    "hsk_level": 3,
+    "example_hanzi": "这个问题我们今天必须解决。",
+    "example_pinyin": "Zhège wèntí wǒmen jīntiān bìxū jiějué.",
+    "example_vi": "Vấn đề này hôm nay chúng ta nhất định phải giải quyết."
+  },
+  {
+    "hanzi": "清楚",
+    "pinyin": "qīngchu",
+    "vi": "Rõ ràng",
+    "hsk_level": 3,
+    "example_hanzi": "你听清楚我说的话了吗？",
+    "example_pinyin": "Nǐ tīng qīngchu wǒ shuō de huà le ma?",
+    "example_vi": "Bạn đã nghe rõ những lời tôi nói chưa?"
+  },
+  {
+    "hanzi": "简单",
+    "pinyin": "jiǎndān",
+    "vi": "Đơn giản",
+    "hsk_level": 3,
+    "example_hanzi": "其实做这道菜非常简单。",
+    "example_pinyin": "Qíshí zuò zhè dào cài fēicháng jiǎndān.",
+    "example_vi": "Thực ra làm món ăn này rất đơn giản."
+  },
+  {
+    "hanzi": "满意",
+    "pinyin": "mǎnyì",
+    "vi": "Hài lòng",
+    "hsk_level": 3,
+    "example_hanzi": "客人对我们的服务非常满意。",
+    "example_pinyin": "Kèrén duì wǒmen de fúwù fēicháng mǎnyì.",
+    "example_vi": "Khách hàng rất hài lòng với dịch vụ của chúng tôi."
+  },
+  {
+    "hanzi": "习惯",
+    "pinyin": "xíguàn",
+    "vi": "Thói quen, quen với",
+    "hsk_level": 3,
+    "example_hanzi": "你慢慢就会习惯这里的气候了。",
+    "example_pinyin": "Nǐ mànmàn jiù huì xíguàn zhèlǐ de qìhòu le.",
+    "example_vi": "Bạn dần dần sẽ quen với khí hậu ở đây thôi."
+  },
+  {
+    "hanzi": "打扰",
+    "pinyin": "dǎrǎo",
+    "vi": "Làm phiền",
+    "hsk_level": 3,
+    "example_hanzi": "不好意思，打扰你休息了。",
+    "example_pinyin": "Bù hǎoyìsi, dǎrǎo nǐ xiūxi le.",
+    "example_vi": "Ngại quá, đã làm phiền bạn nghỉ ngơi rồi."
+  },
+  {
+    "hanzi": "放心",
+    "pinyin": "fàng xīn",
+    "vi": "Yên tâm",
+    "hsk_level": 3,
+    "example_hanzi": "你放心吧，这件事情交给我办。",
+    "example_pinyin": "Nǐ fàng xīn ba, zhè jiàn shìqing jiāo gěi wǒ bàn.",
+    "example_vi": "Bạn yên tâm đi, chuyện này cứ giao cho tôi xử lý."
+  },
+  {
+    "hanzi": "顺利",
+    "pinyin": "shùnlì",
+    "vi": "Thuận lợi, trôi chảy",
+    "hsk_level": 3,
+    "example_hanzi": "祝你今天的工作一切顺利！",
+    "example_pinyin": "Zhù nǐ jīntiān de gōngzuò yíqiè shùnlì!",
+    "example_vi": "Chúc công việc hôm nay của bạn mọi điều thuận lợi!"
+  },
+  {
+    "hanzi": "商量",
+    "pinyin": "shāngliang",
+    "vi": "Bàn bạc, thương lượng",
+    "hsk_level": 4,
+    "example_hanzi": "这件事我要先跟家人商量一下。",
+    "example_pinyin": "Zhè jiàn shì wǒ yào xiān gēn jiārén shāngliang yíxià.",
+    "example_vi": "Chuyện này tôi cần phải bàn bạc trước với gia đình đã."
+  },
+  {
+    "hanzi": "建议",
+    "pinyin": "jiànyì",
+    "vi": "Đề xuất, gợi ý, lời khuyên",
+    "hsk_level": 4,
+    "example_hanzi": "非常感谢你提出的宝贵建议。",
+    "example_pinyin": "Fēicháng gǎnxiè nǐ tíchū de bǎoguì jiànyì.",
+    "example_vi": "Vô cùng cảm ơn đề xuất quý báu mà bạn đã đưa ra."
+  },
+  {
+    "hanzi": "究竟",
+    "pinyin": "jiūjìng",
+    "vi": "Rốt cuộc, rốt cục",
+    "hsk_level": 4,
+    "example_hanzi": "这件事情究竟是怎么回事？",
+    "example_pinyin": "Zhè jiàn shìqing jiūjìng shì zěnme huí shì?",
+    "example_vi": "Chuyện này rốt cuộc là có đầu đuôi ra sao?"
+  },
+  {
+    "hanzi": "安排",
+    "pinyin": "ānpái",
+    "vi": "Sắp xếp",
+    "hsk_level": 4,
+    "example_hanzi": "我已经帮你安排好了下午的车。",
+    "example_pinyin": "Wǒ yǐjīng bāng nǐ ānpái hǎo le xiàwǔ de chē.",
+    "example_vi": "Tôi đã sắp xếp xong xe buổi chiều cho bạn rồi."
+  },
+  {
+    "hanzi": "拒绝",
+    "pinyin": "jùjué",
+    "vi": "Từ chối",
+    "hsk_level": 4,
+    "example_hanzi": "他委婉地拒绝了这个邀请。",
+    "example_pinyin": "Tā wěiwǎn de jùjué le zhège yāoqǐng.",
+    "example_vi": "Anh ấy đã khéo léo từ chối lời mời này."
+  },
+  {
+    "hanzi": "值得",
+    "pinyin": "zhíde",
+    "vi": "Xứng đáng, đáng",
+    "hsk_level": 4,
+    "example_hanzi": "这家餐厅的味道真的值得一试。",
+    "example_pinyin": "Zhè jiā cāntīng de wèidào zhēnde zhíde yí shì.",
+    "example_vi": "Hương vị của nhà hàng này thật sự rất đáng thử một lần."
+  }
+]
