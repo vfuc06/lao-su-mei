@@ -472,9 +472,7 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
     if (isListening) {
       stopListening();
     } else {
-      setTimeout(() => {
-        startListening(correctionGate ? 'zh-CN' : speechLang);
-      }, 100);
+      startListening(correctionGate ? 'zh-CN' : speechLang);
     }
   };
 

@@ -17,7 +17,7 @@ export function useSpeechRecognition({
   lang = 'zh-CN',
   onResult,
   onError,
-  silenceTimeoutMs = 1200,
+  silenceTimeoutMs = 1400,
 }: UseSpeechRecognitionOptions = {}) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -25,15 +25,19 @@ export function useSpeechRecognition({
   const [isSupported, setIsSupported] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Quản lý instance và số định danh phiên để tránh xung đột giữa các lượt mở mic liên tiếp
   const recognitionRef = useRef<any>(null);
+  const sessionCounterRef = useRef<number>(0);
   const silenceTimerRef = useRef<any>(null);
   const maxDurationTimerRef = useRef<any>(null);
+
+  // Bộ đệm văn bản thu âm
   const finalTranscriptRef = useRef('');
   const lastInterimRef = useRef('');
   const hasSentRef = useRef(false);
   const currentLangRef = useRef(lang);
 
-  // Sử dụng ref cho callbacks để giữ startListening / stopListening có identity ổn định
+  // Giữ callback references ổn định
   const onResultRef = useRef(onResult);
   const onErrorRef = useRef(onError);
 
@@ -45,7 +49,6 @@ export function useSpeechRecognition({
     onErrorRef.current = onError;
   }, [onError]);
 
-  // Cập nhật ref khi prop lang thay đổi
   useEffect(() => {
     currentLangRef.current = lang;
   }, [lang]);
@@ -70,7 +73,7 @@ export function useSpeechRecognition({
     }
   };
 
-  // Lấy toàn bộ văn bản đã thu được
+  // Lấy toàn bộ văn bản đã thu được trong phiên
   const getFullSpokenText = () => {
     const final = finalTranscriptRef.current.trim();
     const interim = lastInterimRef.current.trim();
@@ -80,7 +83,7 @@ export function useSpeechRecognition({
     return final || interim || '';
   };
 
-  // Hàm gửi kết quả duy nhất 1 lần cho mỗi lượt nói
+  // Gửi kết quả duy nhất 1 lần cho mỗi phiên
   const sendResultOnce = useCallback((spokenLang: string) => {
     if (hasSentRef.current) return;
     const fullText = getFullSpokenText().trim();
@@ -90,20 +93,20 @@ export function useSpeechRecognition({
     }
   }, []);
 
-  // Dừng thu âm an toàn & dọn dẹp triệt để instance cũ
+  // Dừng thu âm an toàn & dọn dẹp triệt để
   const stopListening = useCallback(() => {
     clearTimers();
     setIsListening(false);
 
-    if (recognitionRef.current) {
+    const prev = recognitionRef.current;
+    if (prev) {
       try {
-        const r = recognitionRef.current;
-        // Gỡ bỏ listeners để instance cũ không phát sinh sự kiện đè lên lượt mới
-        r.onstart = null;
-        r.onresult = null;
-        r.onerror = null;
-        r.onend = null;
-        r.stop();
+        // Gỡ bỏ listeners trước khi stop để không bị callback muộn đè lên phiên mới
+        prev.onstart = null;
+        prev.onresult = null;
+        prev.onerror = null;
+        prev.onend = null;
+        prev.stop();
       } catch (e) {}
       recognitionRef.current = null;
     }
@@ -111,7 +114,7 @@ export function useSpeechRecognition({
     sendResultOnce(currentLangRef.current);
   }, [sendResultOnce]);
 
-  // Bắt đầu thu âm lượt mới (Mở mic nhiều lần liên tiếp không bao giờ bị khóa)
+  // Bắt đầu thu âm (hỗ trợ bấm liên tục nhiều lần không bao giờ bị khóa)
   const startListening = useCallback(
     (overrideLang?: string) => {
       const win = window as IWindow;
@@ -128,7 +131,10 @@ export function useSpeechRecognition({
       const activeLang = overrideLang || currentLangRef.current || 'zh-CN';
       currentLangRef.current = activeLang;
 
-      // 1. Dọn dẹp triệt để bất kỳ instance nào đang chạy trước đó
+      // 1. Tăng ID phiên để cô lập hoàn toàn phiên mới khỏi mọi sự kiện của instance cũ
+      const sessionId = ++sessionCounterRef.current;
+
+      // 2. Dọn dẹp phiên cũ nếu còn đang mở dở
       clearTimers();
       if (recognitionRef.current) {
         try {
@@ -142,7 +148,7 @@ export function useSpeechRecognition({
         recognitionRef.current = null;
       }
 
-      // 2. Reset trạng thái đệm
+      // 3. Reset các bộ đệm
       setErrorMessage(null);
       setTranscript('');
       setInterimTranscript('');
@@ -150,26 +156,30 @@ export function useSpeechRecognition({
       lastInterimRef.current = '';
       hasSentRef.current = false;
 
-      // 3. Giới hạn thời gian thu âm tối đa 8.5s cho mỗi lần bấm mic để tránh treo
+      // 4. Giới hạn tối đa 12 giây để bảo vệ micro khỏi bị treo
       maxDurationTimerRef.current = setTimeout(() => {
-        stopListening();
-      }, 8500);
+        if (sessionId === sessionCounterRef.current) {
+          stopListening();
+        }
+      }, 12000);
 
       try {
         const recognition = new SpeechRecognition();
         recognition.lang = activeLang;
-        // QUAN TRỌNG: continuous = false để tương thích 100% với iOS Safari & Android Webview
-        // Tránh tình trạng iOS giữ khóa microphone không cho mở lại lần 2
-        recognition.continuous = false;
+        // Bật continuous = true để người học có đủ thời gian chuẩn bị và suy nghĩ câu nói
+        recognition.continuous = true;
         recognition.interimResults = true;
         recognition.maxAlternatives = 1;
 
         recognition.onstart = () => {
+          if (sessionId !== sessionCounterRef.current) return;
           setIsListening(true);
           setErrorMessage(null);
         };
 
         recognition.onresult = (event: any) => {
+          if (sessionId !== sessionCounterRef.current) return;
+
           let interim = '';
           let currentFinal = finalTranscriptRef.current;
 
@@ -187,7 +197,7 @@ export function useSpeechRecognition({
           setTranscript(currentFinal);
           setInterimTranscript(interim);
 
-          // Phát hiện im lặng sau khi người dùng đã nói
+          // Phát hiện im lặng sau khi người dùng đã nói ít nhất 1 âm
           if (silenceTimerRef.current) {
             clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = null;
@@ -196,29 +206,36 @@ export function useSpeechRecognition({
           const currentSpoken = (currentFinal + ' ' + interim).trim();
           if (currentSpoken.length > 0) {
             silenceTimerRef.current = setTimeout(() => {
-              stopListening();
+              if (sessionId === sessionCounterRef.current) {
+                stopListening();
+              }
             }, silenceTimeoutMs);
           }
         };
 
         recognition.onerror = (event: any) => {
+          if (sessionId !== sessionCounterRef.current) return;
           console.warn('Speech recognition error:', event.error);
-          setIsListening(false);
-          clearTimers();
 
           if (event.error === 'aborted') {
             return;
           }
 
+          clearTimers();
+          setIsListening(false);
+
+          if (event.error === 'no-speech') {
+            // Người dùng bấm mic nhưng chưa kịp nói, tắt êm dịu không báo lỗi đỏ
+            return;
+          }
+
           let vietnameseMsg = 'Có lỗi nhận diện âm thanh.';
           if (event.error === 'service-not-allowed') {
-            vietnameseMsg = 'Apple iOS chặn tính năng micro khi ghim vào Màn hình chính. Bạn hãy mở link trực tiếp bằng tab trình duyệt Safari hoặc Chrome nhé!';
+            vietnameseMsg = 'Apple iOS chặn tính năng micro khi ghim vào Màn hình chính. Bạn hãy mở link trực tiếp bằng tab Safari hoặc Chrome nhé!';
           } else if (event.error === 'audio-capture') {
             vietnameseMsg = 'Không thể kết nối với micro. Hãy kiểm tra: Cài đặt iPhone > Safari > Micro > Bật Cho phép nhé!';
           } else if (event.error === 'not-allowed' || event.error === 'permission-denied') {
             vietnameseMsg = 'Microphone chưa được cấp quyền! Trên iPhone: Vào Cài đặt > Safari > Micro > Chọn "Cho phép".';
-          } else if (event.error === 'no-speech') {
-            vietnameseMsg = 'Không nghe thấy tiếng nói. Hãy thử bấm lại và nói to hơn nhé!';
           } else if (event.error === 'network') {
             vietnameseMsg = 'Mạng nhận diện giọng nói bị gián đoạn. Hãy kiểm tra kết nối Wifi/4G nhé!';
           }
@@ -228,6 +245,7 @@ export function useSpeechRecognition({
         };
 
         recognition.onend = () => {
+          if (sessionId !== sessionCounterRef.current) return;
           setIsListening(false);
           clearTimers();
           sendResultOnce(currentLangRef.current);
@@ -240,30 +258,10 @@ export function useSpeechRecognition({
         recognition.start();
       } catch (err: any) {
         console.error('Failed to start speech recognition:', err);
-        setIsListening(false);
         clearTimers();
+        setIsListening(false);
 
-        // Nếu lỗi do instance trước đang giải phóng, thử lại sau 200ms
-        if (err?.name === 'InvalidStateError') {
-          setTimeout(() => {
-            try {
-              if (!recognitionRef.current) {
-                const retryRec = new SpeechRecognition();
-                retryRec.lang = activeLang;
-                retryRec.continuous = false;
-                retryRec.interimResults = true;
-                retryRec.onstart = () => setIsListening(true);
-                retryRec.onend = () => setIsListening(false);
-                recognitionRef.current = retryRec;
-                retryRec.start();
-              }
-            } catch (retryErr) {
-              console.warn('Retry recognition failed:', retryErr);
-            }
-          }, 200);
-          return;
-        }
-
+        // Xử lý xung đột tài nguyên micro trên Webkit
         const msg = 'Không thể mở micro: ' + (err?.message || 'Vui lòng kiểm tra quyền truy cập');
         setErrorMessage(msg);
         onErrorRef.current?.(msg);
@@ -278,11 +276,12 @@ export function useSpeechRecognition({
       clearTimers();
       if (recognitionRef.current) {
         try {
-          recognitionRef.current.onstart = null;
-          recognitionRef.current.onresult = null;
-          recognitionRef.current.onerror = null;
-          recognitionRef.current.onend = null;
-          recognitionRef.current.abort();
+          const prev = recognitionRef.current;
+          prev.onstart = null;
+          prev.onresult = null;
+          prev.onerror = null;
+          prev.onend = null;
+          prev.abort();
         } catch (e) {}
         recognitionRef.current = null;
       }
