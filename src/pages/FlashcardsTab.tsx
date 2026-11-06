@@ -4,6 +4,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateSM2, getEstimatedIntervals, CardRating } from '../lib/sm2';
 import { evaluatePronunciation } from '../lib/scoring';
+import { getTipForSyllable } from '../lib/pronunciationTips';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { ZhText } from '../components/ZhText';
 import { ScoreRing } from '../components/ScoreRing';
@@ -72,6 +73,7 @@ export const FlashcardsTab: React.FC = () => {
   // Trạng thái mic & chấm điểm cho chế độ Đọc to
   const [heardText, setHeardText] = useState('');
   const [voiceScore, setVoiceScore] = useState<ScoreOutput | null>(null);
+  const [activeVoiceTip, setActiveVoiceTip] = useState<string | null>(null);
   const [autoAdvanceTimer, setAutoAdvanceTimer] = useState<NodeJS.Timeout | null>(null);
 
   // Lưu và tiếp tục tiến trình học dở (để lần sau vào học tiếp mà không mất)
@@ -252,6 +254,7 @@ export const FlashcardsTab: React.FC = () => {
     setSessionCompletedCount(safeIndex);
     setHeardText('');
     setVoiceScore(null);
+    setActiveVoiceTip(null);
 
     // Lưu lại vị trí để lần sau tiếp tục
     try {
@@ -286,6 +289,7 @@ export const FlashcardsTab: React.FC = () => {
       setIsFlipped(false);
       setHeardText('');
       setVoiceScore(null);
+      setActiveVoiceTip(null);
       // Lưu lại tiến trình
       try {
         localStorage.setItem(
@@ -310,6 +314,7 @@ export const FlashcardsTab: React.FC = () => {
       setIsFlipped(false);
       setHeardText('');
       setVoiceScore(null);
+      setActiveVoiceTip(null);
       try {
         localStorage.setItem(
           sessionSaveKey,
@@ -362,6 +367,14 @@ export const FlashcardsTab: React.FC = () => {
   const handleEvaluateVoice = (spokenText: string, card: CardWithProgress) => {
     const res = evaluatePronunciation(card.hanzi, spokenText, [], settings.passThreshold || 80);
     setVoiceScore(res);
+
+    // Mẹo phát âm thanh điệu nếu đọc chưa chuẩn
+    const failedSyllable = res.perSyllable.find((s) => s.status !== 'ok');
+    if (failedSyllable) {
+      setActiveVoiceTip(getTipForSyllable(failedSyllable.target));
+    } else {
+      setActiveVoiceTip(null);
+    }
 
     if (res.passed) {
       setIsFlipped(true);
@@ -828,21 +841,44 @@ export const FlashcardsTab: React.FC = () => {
               </button>
             </div>
 
-            {/* Chế độ Đọc to (Voice Mode): Mic thu âm & Chấm điểm */}
+            {/* Chế độ Đọc to (Voice Mode): Mic thu âm & Chấm điểm & Góp ý sửa */}
             {studyMode === 'voice' && !isFlipped && (
-              <div className="space-y-2 p-3 bg-white rounded-2xl border border-stone-200">
+              <div className="space-y-2.5 p-3.5 bg-white rounded-2xl border border-stone-200 shadow-2xs">
                 {voiceScore && (
-                  <div className="flex items-center justify-between pb-2 border-b border-stone-100">
-                    <div className="text-xs font-bold text-stone-700">
-                      Bạn đã đọc: <span className="text-stone-900">{heardText || '(chưa nghe rõ)'}</span>
+                  <div className="space-y-2 pb-2.5 border-b border-stone-100 animate-fade-in">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-xs font-bold text-stone-800">
+                          Bạn đã đọc: <span className="text-stone-900 font-extrabold">{heardText || '(chưa nghe rõ)'}</span>
+                        </div>
+                        <div className={`text-[11px] font-bold mt-0.5 ${voiceScore.passed ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {voiceScore.passed ? '🎉 Chuẩn xác! Bạn phát âm rất tốt' : '💪 Chưa đúng, bạn bấm mic đọc lại nhé!'}
+                        </div>
+                      </div>
+                      <ScoreRing score={voiceScore.score} size="sm" passThreshold={settings.passThreshold || 80} />
                     </div>
-                    <ScoreRing score={voiceScore.score} size="sm" />
+
+                    {/* Chi tiết từng âm tiết đúng/sai */}
+                    <div className="pt-1">
+                      <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">
+                        Chi tiết từng âm tiết:
+                      </div>
+                      <SyllableDiff perSyllable={voiceScore.perSyllable} extra={voiceScore.extra} />
+                    </div>
+
+                    {/* Mẹo / Góp ý phát âm khi đọc sai */}
+                    {activeVoiceTip && (
+                      <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed">
+                        💡 Góp ý: {activeVoiceTip}
+                      </div>
+                    )}
                   </div>
                 )}
+
                 <button
                   type="button"
                   onClick={() => (isListening ? stopListening() : startListening())}
-                  className={`w-full py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                  className={`w-full py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 ${
                     isListening
                       ? 'bg-amber-500 text-white animate-pulse'
                       : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
@@ -851,12 +887,12 @@ export const FlashcardsTab: React.FC = () => {
                   {isListening ? (
                     <>
                       <Square className="w-3.5 h-3.5 fill-white" />
-                      <span>Đang nghe... bấm để dừng</span>
+                      <span>Đang nghe... bấm để chấm điểm</span>
                     </>
                   ) : (
                     <>
                       <Mic className="w-3.5 h-3.5" />
-                      <span>Bấm mic đọc to chữ Hán này</span>
+                      <span>{voiceScore && !voiceScore.passed ? 'Bấm mic đọc lại từ này' : 'Bấm mic đọc to chữ Hán này'}</span>
                     </>
                   )}
                 </button>
