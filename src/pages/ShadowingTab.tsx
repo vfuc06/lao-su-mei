@@ -10,6 +10,7 @@ import { ScoreRing } from '../components/ScoreRing';
 import { SyllableDiff } from '../components/SyllableDiff';
 import { ZhText } from '../components/ZhText';
 import { playZhAudio } from '../lib/audio';
+import { INITIAL_PHRASE_GROUPS, INITIAL_PHRASE_PAIRS } from '../lib/initialData';
 import {
   Headphones,
   Sparkles,
@@ -39,10 +40,10 @@ interface ShadowingTabProps {
 export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => {
   const { user, settings } = useAuth();
 
-  // Trạng thái nguồn và chế độ
+  // Trạng thái nguồn và chế độ (khởi tạo ngay với nhóm có sẵn)
   const [sourceType, setSourceType] = useState<'daily' | 'workplace' | 'mistakes' | 'favorites'>('daily');
   const [mode, setMode] = useState<'mimic' | 'qa'>('mimic'); // Nhại lại vs Đối đáp
-  const [groups, setGroups] = useState<PhraseGroup[]>([]);
+  const [groups, setGroups] = useState<PhraseGroup[]>(INITIAL_PHRASE_GROUPS);
   const [selectedGroup, setSelectedGroup] = useState<PhraseGroup | null>(null);
   const [practiceQueue, setPracticeQueue] = useState<PhrasePair[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -59,7 +60,7 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
   const [attemptCount, setAttemptCount] = useState<number>(0);
   const [heardText, setHeardText] = useState<string>('');
   const [activeTip, setActiveTip] = useState<string | null>(null);
-  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
 
   // Hook nhận diện giọng nói
   const {
@@ -183,26 +184,38 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
         }
       }
     } else if (group) {
-      // Tải theo nhóm
+      // Tải theo nhóm: Ưu tiên dữ liệu nạp sẵn tức thì
+      const localMatches = INITIAL_PHRASE_PAIRS.filter(
+        (p) => p.slug === group.slug || p.groupId === group.id
+      );
+      if (localMatches.length > 0) {
+        items = localMatches;
+      }
+
+      // Đồng bộ thêm từ Supabase nếu có
       if (isSupabaseConfigured) {
-        const { data } = await supabase
-          .from('phrase_pairs')
-          .select('*')
-          .eq('group_id', group.id)
-          .order('sort', { ascending: true });
-        if (data) {
-          items = data.map((p: any) => ({
-            id: p.id,
-            groupId: p.group_id,
-            sort: p.sort,
-            qHanzi: p.q_hanzi,
-            qPinyin: p.q_pinyin,
-            qVi: p.q_vi,
-            aHanzi: p.a_hanzi,
-            aPinyin: p.a_pinyin,
-            aVi: p.a_vi,
-            noteVi: p.note_vi,
-          }));
+        try {
+          const { data } = await supabase
+            .from('phrase_pairs')
+            .select('*')
+            .eq('group_id', group.id)
+            .order('sort', { ascending: true });
+          if (data && data.length > 0) {
+            items = data.map((p: any) => ({
+              id: p.id,
+              groupId: p.group_id,
+              sort: p.sort,
+              qHanzi: p.q_hanzi,
+              qPinyin: p.q_pinyin,
+              qVi: p.q_vi,
+              aHanzi: p.a_hanzi,
+              aPinyin: p.a_pinyin,
+              aVi: p.a_vi,
+              noteVi: p.note_vi,
+            }));
+          }
+        } catch (e) {
+          console.warn('Lỗi tải pairs từ Supabase cho Shadowing, dùng bộ nạp sẵn:', e);
         }
       }
     }

@@ -23,7 +23,7 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
 import { evaluatePronunciation } from '../lib/scoring';
 import { sendChatMessage } from '../lib/api';
-import { playZhAudio, stopZhAudio } from '../lib/audio';
+import { playZhAudio, stopZhAudio, subscribeAudioState } from '../lib/audio';
 import {
   AlertCircle,
   RefreshCw,
@@ -97,6 +97,15 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
 
   // Điều chỉnh độ khó: 'easier' | 'harder'
   const [difficultyBias, setDifficultyBias] = useState<'normal' | 'easier' | 'harder'>('normal');
+
+  // Trạng thái phát âm của tin nhắn hiện tại
+  const [speakingAudioText, setSpeakingAudioText] = useState<string | null>(null);
+
+  useEffect(() => {
+    return subscribeAudioState((isPlaying, text) => {
+      setSpeakingAudioText(isPlaying ? text : null);
+    });
+  }, []);
 
   useEffect(() => {
     try {
@@ -219,8 +228,8 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
 
         scrollToBottom();
 
-        if (settings.autoPlay) {
-          speak(data.reply.hanzi, settings.speechRate);
+        if (settings.autoPlay !== false) {
+          playZhAudio(data.reply.hanzi, settings.speechRate || 1.0);
         }
       } catch (err: any) {
         console.error('Lỗi khi tiếp tục hội thoại:', err);
@@ -302,7 +311,7 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
 
         scrollToBottom();
 
-        if (settings.autoPlay && aiMsg.text) {
+        if (settings.autoPlay !== false && aiMsg.text) {
           playZhAudio(aiMsg.text, settings.speechRate || 1.0);
         }
       } catch (err: any) {
@@ -458,17 +467,14 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
       setShowIOSHelpModal(true);
       return;
     }
+    stopZhAudio();
+    stopSpeaking();
     if (isListening) {
       stopListening();
     } else {
-      if (isSpeechPlaying) {
-        stopSpeaking();
-        setTimeout(() => {
-          startListening(correctionGate ? 'zh-CN' : speechLang);
-        }, 150);
-      } else {
+      setTimeout(() => {
         startListening(correctionGate ? 'zh-CN' : speechLang);
-      }
+      }, 100);
     }
   };
 
@@ -590,7 +596,7 @@ export const ConversationScreen: React.FC<ConversationScreenProps> = ({
               key={msg.id}
               message={msg}
               settings={settings}
-              isPlayingThis={isSpeechPlaying && playingText === msg.text}
+              isPlayingThis={(isSpeechPlaying && playingText === msg.text) || speakingAudioText === msg.text}
               onSpeak={handleSpeakText}
             />
           ))}

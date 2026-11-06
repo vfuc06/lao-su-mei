@@ -9,6 +9,7 @@ import { ZhText } from '../components/ZhText';
 import { ScoreRing } from '../components/ScoreRing';
 import { SyllableDiff } from '../components/SyllableDiff';
 import { playZhAudio } from '../lib/audio';
+import { INITIAL_VOCAB_CARDS } from '../lib/initialData';
 import {
   Layers,
   Sparkles,
@@ -58,8 +59,9 @@ export const FlashcardsTab: React.FC = () => {
   const [studyMode, setStudyMode] = useState<'flip' | 'voice'>('flip');
 
   // Dữ liệu thẻ và tiến trình
-  const [allCards, setAllCards] = useState<CardWithProgress[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Khởi tạo ngay lập tức với 122 thẻ nạp sẵn để người dùng mở ra là học được ngay
+  const [allCards, setAllCards] = useState<CardWithProgress[]>(INITIAL_VOCAB_CARDS);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Buổi học hiện tại
   const [isStudying, setIsStudying] = useState(false);
@@ -75,6 +77,16 @@ export const FlashcardsTab: React.FC = () => {
   const [autoAdvanceTimer, setAutoAdvanceTimer] = useState<NodeJS.Timeout | null>(null);
 
   const currentCard = studyQueue[currentIndex];
+
+  // Tự động phát âm khi sang từ mới trong buổi học ôn tập
+  useEffect(() => {
+    if (isStudying && currentCard && settings.autoPlay !== false) {
+      const timer = setTimeout(() => {
+        playZhAudio(currentCard.hanzi, settings.speechRate || 1.0);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [currentIndex, isStudying]);
 
   // Hook nhận diện giọng nói
   const {
@@ -94,55 +106,58 @@ export const FlashcardsTab: React.FC = () => {
 
   // Tải thẻ từ vựng và tiến trình
   const fetchCardsAndProgress = async () => {
-    setIsLoading(true);
-    let cards: VocabCard[] = [];
+    let cards: VocabCard[] = INITIAL_VOCAB_CARDS;
     const progressMap = new Map<number, UserCardProgress>();
 
-    if (isSupabaseConfigured) {
-      // 1. Tải danh sách thẻ
-      const { data: cardsData } = await supabase
-        .from('vocab_cards')
-        .select('*')
-        .order('sort', { ascending: true });
-
-      if (cardsData) {
-        cards = cardsData.map((c: any) => ({
-          id: c.id,
-          deck: c.deck,
-          hskLevel: c.hsk_level,
-          category: c.category,
-          hanzi: c.hanzi,
-          pinyin: c.pinyin,
-          vi: c.vi,
-          exampleHanzi: c.example_hanzi,
-          examplePinyin: c.example_pinyin,
-          exampleVi: c.example_vi,
-          sort: c.sort,
-        }));
-      }
-
-      // 2. Tải tiến trình nếu đã đăng nhập
-      if (user) {
-        const { data: progData } = await supabase
-          .from('user_card_progress')
+    try {
+      if (isSupabaseConfigured) {
+        // 1. Tải danh sách thẻ
+        const { data: cardsData } = await supabase
+          .from('vocab_cards')
           .select('*')
-          .eq('user_id', user.id);
+          .order('sort', { ascending: true });
 
-        if (progData) {
-          progData.forEach((p: any) => {
-            progressMap.set(p.card_id, {
-              userId: p.user_id,
-              cardId: p.card_id,
-              ease: p.ease,
-              intervalDays: p.interval_days,
-              repetitions: p.repetitions,
-              lapses: p.lapses,
-              dueAt: p.due_at,
-              lastReviewedAt: p.last_reviewed_at,
+        if (cardsData && cardsData.length > 0) {
+          cards = cardsData.map((c: any) => ({
+            id: c.id,
+            deck: c.deck,
+            hskLevel: c.hsk_level,
+            category: c.category,
+            hanzi: c.hanzi,
+            pinyin: c.pinyin,
+            vi: c.vi,
+            exampleHanzi: c.example_hanzi,
+            examplePinyin: c.example_pinyin,
+            exampleVi: c.example_vi,
+            sort: c.sort,
+          }));
+        }
+
+        // 2. Tải tiến trình nếu đã đăng nhập
+        if (user) {
+          const { data: progData } = await supabase
+            .from('user_card_progress')
+            .select('*')
+            .eq('user_id', user.id);
+
+          if (progData) {
+            progData.forEach((p: any) => {
+              progressMap.set(p.card_id, {
+                userId: p.user_id,
+                cardId: p.card_id,
+                ease: p.ease,
+                intervalDays: p.interval_days,
+                repetitions: p.repetitions,
+                lapses: p.lapses,
+                dueAt: p.due_at,
+                lastReviewedAt: p.last_reviewed_at,
+              });
             });
-          });
+          }
         }
       }
+    } catch (err) {
+      console.warn('Lỗi tải tiến trình thẻ, dùng bộ nhớ cục bộ:', err);
     }
 
     // Fallback cho chế độ khách (localStorage)
@@ -681,7 +696,10 @@ export const FlashcardsTab: React.FC = () => {
                   // Chế độ Lật thẻ: Nút lật to
                   <button
                     type="button"
-                    onClick={() => setIsFlipped(true)}
+                    onClick={() => {
+                      setIsFlipped(true);
+                      speakHanzi(currentCard.hanzi, settings.speechRate || 1.0);
+                    }}
                     className="w-full py-3.5 px-4 rounded-2xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-sm shadow-md active:scale-98 transition-all flex items-center justify-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" />

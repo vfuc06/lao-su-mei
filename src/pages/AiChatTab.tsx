@@ -3,6 +3,7 @@ import { ConversationMode, Scenario } from '../types';
 import { SCENARIOS } from '../lib/scenarios';
 import { useAuth } from '../contexts/AuthContext';
 import { Sparkles, Briefcase, Coffee, ArrowRight, ChevronDown, ChevronUp, Layers, BookMarked, Mic } from 'lucide-react';
+import { unlockAudio } from '../lib/audio';
 
 interface AiChatTabProps {
   onSelectScenario: (scenario: Scenario) => void;
@@ -23,6 +24,7 @@ export const AiChatTab: React.FC<AiChatTabProps> = ({
   const filteredScenarios = SCENARIOS.filter((s) => s.mode === activeMode);
 
   const handleScenarioClick = (scenario: Scenario) => {
+    unlockAudio();
     if (!user) {
       onRequireAuth();
       return;

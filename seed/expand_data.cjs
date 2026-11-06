@@ -73,3 +73,4 @@ function mergeData(filePath, additional) {
 mergeData(path.join(__dirname, 'vocab_hsk.json'), additionalHsk);
 mergeData(path.join(__dirname, 'vocab_workplace.json'), additionalWp);
 console.log('✅ Đã cập nhật xong bộ từ vựng mở rộng!');
+

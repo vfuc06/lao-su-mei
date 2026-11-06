@@ -3,6 +3,7 @@ import { ConversationMode, PhraseGroup, PhrasePair } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { ZhText } from '../components/ZhText';
+import { INITIAL_PHRASE_GROUPS, INITIAL_PHRASE_PAIRS } from '../lib/initialData';
 import {
   BookOpen,
   Coffee,
@@ -26,10 +27,11 @@ interface PhrasesTabProps {
 export const PhrasesTab: React.FC<PhrasesTabProps> = ({ onPracticePair }) => {
   const { user } = useAuth();
   const [activeKind, setActiveKind] = useState<ConversationMode>('daily');
-  const [groups, setGroups] = useState<PhraseGroup[]>([]);
+  // Khởi tạo ngay lập tức với 14 nhóm cục bộ để không bao giờ bị chờ màn hình trắng
+  const [groups, setGroups] = useState<PhraseGroup[]>(INITIAL_PHRASE_GROUPS);
   const [selectedGroup, setSelectedGroup] = useState<PhraseGroup | null>(null);
   const [pairs, setPairs] = useState<PhrasePair[]>([]);
-  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   const [isLoadingPairs, setIsLoadingPairs] = useState(false);
 
   // Bộ lọc & Tìm kiếm
@@ -38,17 +40,17 @@ export const PhrasesTab: React.FC<PhrasesTabProps> = ({ onPracticePair }) => {
   const [isHideAnswers, setIsHideAnswers] = useState(false);
   const [revealedIds, setRevealedIds] = useState<Record<number, boolean>>({});
 
-  // 1. Tải danh sách nhóm (phrase_groups)
+  // 1. Tải danh sách nhóm (phrase_groups) từ Supabase đồng bộ ngầm
   useEffect(() => {
     const fetchGroups = async () => {
-      setIsLoadingGroups(true);
-      if (isSupabaseConfigured) {
+      if (!isSupabaseConfigured) return;
+      try {
         const { data, error } = await supabase
           .from('phrase_groups')
           .select('*, phrase_pairs(count)')
           .order('sort', { ascending: true });
 
-        if (data && !error) {
+        if (data && !error && data.length > 0) {
           const mapped: PhraseGroup[] = data.map((g: any) => ({
             id: g.id,
             kind: g.kind,
@@ -60,30 +62,43 @@ export const PhrasesTab: React.FC<PhrasesTabProps> = ({ onPracticePair }) => {
           }));
           setGroups(mapped);
         }
+      } catch (err) {
+        console.warn('Lỗi tải nhóm từ Supabase, dùng dữ liệu sẵn có:', err);
       }
-      setIsLoadingGroups(false);
     };
 
     fetchGroups();
   }, []);
 
-  // 2. Tải các cặp câu khi chọn 1 nhóm
+  // 2. Tải các cặp câu khi chọn 1 nhóm (Ưu tiên hiển thị tức thì từ bộ nạp sẵn)
   useEffect(() => {
     if (!selectedGroup) return;
 
-    const fetchPairs = async () => {
+    // 2.1 Hiển thị ngay lập tức các câu từ bộ nạp sẵn (0ms delay)
+    const localMatches = INITIAL_PHRASE_PAIRS.filter(
+      (p) => p.slug === selectedGroup.slug || p.groupId === selectedGroup.id
+    );
+    if (localMatches.length > 0) {
+      setPairs(localMatches);
+      setIsLoadingPairs(false);
+    } else {
       setIsLoadingPairs(true);
-      if (isSupabaseConfigured) {
-        // Tải các cặp câu
-        const { data: pairsData } = await supabase
-          .from('phrase_pairs')
-          .select('*')
-          .eq('group_id', selectedGroup.id)
-          .order('sort', { ascending: true });
+    }
 
-        // Tải tiến trình cá nhân (user_phrase_progress) nếu đã đăng nhập
+    // 2.2 Đồng bộ ngầm tiến trình cá nhân từ Supabase
+    const syncWithDatabase = async () => {
+      try {
         let progressMap: Record<number, { favorited: boolean; passed: boolean; bestScore: number }> = {};
-        if (user) {
+
+        // Đọc từ localStorage cho khách
+        try {
+          const savedFavs = JSON.parse(localStorage.getItem('lao_su_mei_fav_pairs') || '[]');
+          savedFavs.forEach((id: number) => {
+            progressMap[id] = { favorited: true, passed: false, bestScore: 0 };
+          });
+        } catch (e) {}
+
+        if (isSupabaseConfigured && user) {
           const { data: progData } = await supabase
             .from('user_phrase_progress')
             .select('pair_id, favorited, passed, best_score')
@@ -98,39 +113,25 @@ export const PhrasesTab: React.FC<PhrasesTabProps> = ({ onPracticePair }) => {
               };
             });
           }
-        } else {
-          // Khách: Đọc từ localStorage
-          try {
-            const savedFavs = JSON.parse(localStorage.getItem('lao_su_mei_fav_pairs') || '[]');
-            savedFavs.forEach((id: number) => {
-              progressMap[id] = { favorited: true, passed: false, bestScore: 0 };
-            });
-          } catch (e) {}
         }
 
-        if (pairsData) {
-          const mapped: PhrasePair[] = pairsData.map((p: any) => ({
-            id: p.id,
-            groupId: p.group_id,
-            sort: p.sort,
-            qHanzi: p.q_hanzi,
-            qPinyin: p.q_pinyin,
-            qVi: p.q_vi,
-            aHanzi: p.a_hanzi,
-            aPinyin: p.a_pinyin,
-            aVi: p.a_vi,
-            noteVi: p.note_vi,
-            favorited: progressMap[p.id]?.favorited || false,
-            passed: progressMap[p.id]?.passed || false,
-            bestScore: progressMap[p.id]?.bestScore || 0,
-          }));
-          setPairs(mapped);
-        }
+        // Cập nhật trạng thái yêu thích / hoàn thành vào danh sách câu
+        setPairs((prev) =>
+          prev.map((p) => ({
+            ...p,
+            favorited: progressMap[p.id]?.favorited ?? p.favorited ?? false,
+            passed: progressMap[p.id]?.passed ?? p.passed ?? false,
+            bestScore: progressMap[p.id]?.bestScore ?? p.bestScore ?? 0,
+          }))
+        );
+      } catch (err) {
+        console.warn('Lỗi đồng bộ tiến trình mẫu câu:', err);
+      } finally {
+        setIsLoadingPairs(false);
       }
-      setIsLoadingPairs(false);
     };
 
-    fetchPairs();
+    syncWithDatabase();
   }, [selectedGroup, user]);
 
   // Bật/tắt yêu thích (⭐)
