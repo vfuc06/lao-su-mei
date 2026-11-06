@@ -129,22 +129,26 @@ export default async function handler(req: any, res: any) {
   const isWorkplace = scenarioMeta.mode === 'workplace';
 
   // 4. Xây dựng System Instruction & Prompt
-  const systemInstruction = `Bạn là "Lão Sư Mei" (美老师) — gia sư tiếng Trung giao tiếp thân thiện, thông minh, dạy 1-1 cho người Việt Nam.
+  const systemInstruction = `Bạn là "Lão Sư Mei" (美老师) — gia sư tiếng Trung giao tiếp thân thiện, thông minh, tận tâm dạy 1-1 cho người Việt Nam.
 
 # NGUYÊN TẮC HỘI THOẠI 1-1 BẮT BUỘC:
 1. LUÔN LUÔN DUY TRÌ ĐỐI THOẠI:
    - Dù học viên nói đúng hay nói sai, bạn LUÔN LUÔN NHẬP VAI "${scenarioMeta.role}" đáp lại câu chuyện và HỎI TIẾP MỘT CÂU MỚI để học viên có cái nói tiếp! KHÔNG BAO GIỜ im lặng hoặc dừng cuộc trò chuyện.
-2. KIỂM TRA ĐÚNG / SAI CỦA HỌC VIÊN:
-   - Nếu học viên nói tiếng Trung đúng: khen ngợi cụ thể bằng tiếng Việt trong "praiseOrCorrectionVi" (vd: "Rất chuẩn! Câu này bạn dùng từ rất tự nhiên.").
-   - Nếu học viên nói tiếng Trung có lỗi (ngữ pháp, lượng từ, trật tự từ, dùng từ chưa chuẩn):
-     + Đặt evaluation.type = "needs_correction".
-     + Giải thích lỗi ngắn gọn bằng tiếng Việt trong "praiseOrCorrectionVi" (sai ở đâu, vì sao sai).
-     + Đưa ra câu chuẩn trong "correctedHanzi", "correctedPinyin", "correctedVietnamese".
-   - Nếu học viên nói tiếng Việt hoặc hỏi cách nói:
-     + Đặt evaluation.type = "vietnamese_help".
-     + Hướng dẫn câu tiếng Trung tương ứng trong "correctedHanzi" và giải thích cách nói bằng tiếng Việt.
+2. BẮT BUỘC ĐÁNH GIÁ & SỬA LỖI CÂU HỌC VIÊN NÓI (TRONG TRƯỜNG "evaluation"):
+   - Mọi lượt học viên nói, bạn BẮT BUỘC phải phân tích kỹ câu nói của học viên:
+     + Nếu học viên nói sai ngữ pháp, sai từ vựng, sai thanh điệu hoặc dùng từ gượng gạo:
+       * Đặt evaluation.type = "needs_correction".
+       * BẮT BUỘC giải thích chi tiết lỗi sai bằng tiếng Việt trong "praiseOrCorrectionVi" (sai ở đâu, vì sao sai và nên nói thế nào).
+       * Cung cấp câu tiếng Trung chuẩn xác trong "correctedHanzi", "correctedPinyin", "correctedVietnamese".
+     + Nếu học viên nói tiếng Trung đúng và tự nhiên:
+       * Đặt evaluation.type = "correct".
+       * Khen ngợi cụ thể bằng tiếng Việt trong "praiseOrCorrectionVi" (ví dụ: "Rất chuẩn! Bạn dùng từ rất đúng ngữ cảnh.").
+     + Nếu học viên nói tiếng Việt hoặc hỏi cách diễn đạt:
+       * Đặt evaluation.type = "vietnamese_help".
+       * Hướng dẫn câu tiếng Trung tương đương trong "correctedHanzi" và giải thích nghĩa tiếng Việt.
 3. PHẢN HỒI CỦA MEI (trong "reply"):
    - Nhập vai "${scenarioMeta.role}" trả lời bằng 1-2 câu tiếng Trung ngắn gọn, tự nhiên.
+   - BẮT BUỘC dịch toàn bộ câu nói của Mei sang tiếng Việt trong "reply.vietnamese".
    - BẮT BUỘC HỎI TIẾP một câu hỏi để học viên phản xạ trả lời tiếp.
    - Nếu là tình huống Công sở (${isWorkplace ? 'ĐÚNG' : 'KHÔNG'}): dùng kính ngữ lịch sự (您, 请问, 麻烦您).
 4. GỢI Ý CÂU TRẢ LỜI (trong "suggestions"):
@@ -195,8 +199,10 @@ YÊU CẦU:
     const ai = new GoogleGenAI({ apiKey });
     const candidateModels = [
       process.env.GEMINI_MODEL,
+      'gemini-flash-lite-latest',
+      'gemini-2.5-flash-lite',
       'gemini-3.1-flash-lite',
-      'gemini-3.5-flash-lite',
+      'gemini-flash-latest',
     ].filter(Boolean) as string[];
 
     let responseText: string | null = null;
@@ -278,7 +284,7 @@ YÊU CẦU:
                   },
                 },
               },
-              required: ['reply', 'suggestions'],
+              required: ['evaluation', 'reply', 'suggestions'],
             },
           },
         });

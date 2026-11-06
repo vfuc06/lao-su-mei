@@ -25,44 +25,49 @@ export const MistakesModal: React.FC<MistakesModalProps> = ({
 
     const loadMistakes = async () => {
       setIsLoading(true);
-      if (user && isSupabaseConfigured) {
-        const { data } = await supabase
-          .from('mistakes')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+      try {
+        if (user && isSupabaseConfigured) {
+          const { data } = await supabase
+            .from('mistakes')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
 
-        if (data) {
-          setMistakes(
-            data.map((m: any) => ({
-              id: m.id,
-              userSaid: m.user_said,
-              correctHanzi: m.correct_hanzi,
-              correctPinyin: m.correct_pinyin,
-              correctVi: m.correct_vi,
-              explanation: m.explanation,
-              errorType: m.error_type,
-              attempts: m.attempts,
-              bestScore: m.best_score,
-              passed: m.passed,
-              createdAt: m.created_at,
-            }))
-          );
-        }
-      } else {
-        // Tải từ localStorage nếu là khách
-        try {
-          const local = localStorage.getItem('lao_su_mei_mistakes');
-          if (local) {
-            setMistakes(JSON.parse(local));
+          if (data) {
+            setMistakes(
+              data.map((m: any) => ({
+                id: m.id,
+                userSaid: m.user_said,
+                correctHanzi: m.correct_hanzi,
+                correctPinyin: m.correct_pinyin,
+                correctVi: m.correct_vi,
+                explanation: m.explanation,
+                errorType: m.error_type,
+                attempts: m.attempts,
+                bestScore: m.best_score,
+                passed: m.passed,
+                createdAt: m.created_at,
+              }))
+            );
           }
-        } catch (e) {}
+        } else {
+          // Tải từ localStorage nếu là khách
+          try {
+            const local = localStorage.getItem('lao_su_mei_mistakes');
+            if (local) {
+              setMistakes(JSON.parse(local));
+            }
+          } catch (e) {}
+        }
+      } catch (err) {
+        console.warn('Lỗi tải sổ lỗi:', err);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     loadMistakes();
-  }, [isOpen, user]);
+  }, [isOpen, user?.id]);
 
   if (!isOpen) return null;
 

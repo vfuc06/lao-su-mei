@@ -85,9 +85,40 @@ export const PhrasesTab: React.FC<PhrasesTabProps> = ({ onPracticePair }) => {
       setIsLoadingPairs(true);
     }
 
-    // 2.2 Đồng bộ ngầm tiến trình cá nhân từ Supabase
+    // 2.2 Đồng bộ ngầm với Supabase (tải thêm câu mới và tiến trình cá nhân)
+    let isCancelled = false;
     const syncWithDatabase = async () => {
       try {
+        let loadedPairs = localMatches;
+
+        // Nếu dữ liệu cục bộ chưa có câu của nhóm này thì truy vấn từ Supabase
+        if (loadedPairs.length === 0 && isSupabaseConfigured) {
+          const { data: dbPairs } = await supabase
+            .from('phrase_pairs')
+            .select('*')
+            .eq('group_id', selectedGroup.id)
+            .order('sort', { ascending: true });
+
+          if (dbPairs && dbPairs.length > 0) {
+            loadedPairs = dbPairs.map((p: any) => ({
+              id: p.id,
+              groupId: p.group_id,
+              slug: selectedGroup.slug,
+              sort: p.sort,
+              qHanzi: p.q_hanzi,
+              qPinyin: p.q_pinyin,
+              qVi: p.q_vi,
+              aHanzi: p.a_hanzi,
+              aPinyin: p.a_pinyin,
+              aVi: p.a_vi,
+              noteVi: p.note_vi,
+            }));
+            if (!isCancelled) {
+              setPairs(loadedPairs);
+            }
+          }
+        }
+
         let progressMap: Record<number, { favorited: boolean; passed: boolean; bestScore: number }> = {};
 
         // Đọc từ localStorage cho khách
@@ -116,23 +147,32 @@ export const PhrasesTab: React.FC<PhrasesTabProps> = ({ onPracticePair }) => {
         }
 
         // Cập nhật trạng thái yêu thích / hoàn thành vào danh sách câu
-        setPairs((prev) =>
-          prev.map((p) => ({
-            ...p,
-            favorited: progressMap[p.id]?.favorited ?? p.favorited ?? false,
-            passed: progressMap[p.id]?.passed ?? p.passed ?? false,
-            bestScore: progressMap[p.id]?.bestScore ?? p.bestScore ?? 0,
-          }))
-        );
+        if (!isCancelled) {
+          setPairs((prev) => {
+            const source = prev.length > 0 ? prev : loadedPairs;
+            return source.map((p) => ({
+              ...p,
+              favorited: progressMap[p.id]?.favorited ?? p.favorited ?? false,
+              passed: progressMap[p.id]?.passed ?? p.passed ?? false,
+              bestScore: progressMap[p.id]?.bestScore ?? p.bestScore ?? 0,
+            }));
+          });
+        }
       } catch (err) {
         console.warn('Lỗi đồng bộ tiến trình mẫu câu:', err);
       } finally {
-        setIsLoadingPairs(false);
+        if (!isCancelled) {
+          setIsLoadingPairs(false);
+        }
       }
     };
 
     syncWithDatabase();
-  }, [selectedGroup, user]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedGroup?.id, user?.id]);
 
   // Bật/tắt yêu thích (⭐)
   const handleToggleFavorite = async (pairId: number, currentFav: boolean) => {

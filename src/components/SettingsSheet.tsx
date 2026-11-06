@@ -128,34 +128,6 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
             </div>
           </div>
 
-          {/* 4. Số thẻ mới mỗi ngày */}
-          <div>
-            <label className="font-semibold text-stone-800 flex items-center justify-between mb-2 text-xs">
-              <span className="flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-600" />
-                <span>Số từ vựng mới mỗi ngày (Flashcard)</span>
-              </span>
-              <span className="text-red-600 font-bold">
-                {settings.dailyNewCards >= 100 ? 'Không giới hạn' : `${settings.dailyNewCards} từ`}
-              </span>
-            </label>
-            <div className="grid grid-cols-5 gap-1.5">
-              {[10, 20, 30, 50, 999].map((num) => (
-                <button
-                  key={num}
-                  type="button"
-                  onClick={() => onUpdateSettings({ dailyNewCards: num })}
-                  className={`py-1.5 rounded-xl border text-xs font-semibold ${
-                    settings.dailyNewCards === num
-                      ? 'border-red-500 bg-red-50 text-red-700 font-bold'
-                      : 'border-stone-200 bg-stone-50 text-stone-600'
-                  }`}
-                >
-                  {num === 999 ? 'Tất cả' : num}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* 5. Tự động đọc to */}
           <div className="flex items-center justify-between py-1 border-t border-stone-100 pt-3">
