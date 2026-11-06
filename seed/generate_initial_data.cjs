@@ -133,3 +133,4 @@ export const INITIAL_VOCAB_CARDS: VocabCard[] = ${JSON.stringify(initialVocabCar
 
 fs.writeFileSync(path.join(__dirname, '../src/lib/initialData.ts'), fileOutput, 'utf8');
 console.log(`✅ Đã tạo thành công src/lib/initialData.ts với ${initialGroups.length} nhóm, ${initialPairs.length} mẫu câu, ${initialVocabCards.length} từ vựng!`);
+

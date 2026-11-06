@@ -22,7 +22,7 @@ function notifyState(isPlaying: boolean, text: string | null) {
   listeners.forEach((listener) => {
     try {
       listener(isPlaying, text);
-    } catch (e) {}
+    } catch (e) { }
   });
 }
 
@@ -55,8 +55,8 @@ export function unlockAudio() {
         silent.pause();
         isAudioUnlocked = true;
       })
-      .catch(() => {});
-  } catch (e) {}
+      .catch(() => { });
+  } catch (e) { }
 }
 
 if (typeof window !== 'undefined') {
@@ -162,13 +162,13 @@ export function stopZhAudio() {
     try {
       currentAudio.pause();
       currentAudio.currentTime = 0;
-    } catch (e) {}
+    } catch (e) { }
     currentAudio = null;
   }
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel();
-    } catch (e) {}
+    } catch (e) { }
   }
   notifyState(false, null);
 }

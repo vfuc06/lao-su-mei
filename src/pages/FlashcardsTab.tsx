@@ -21,17 +21,13 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
-  AlertCircle,
   Briefcase,
   BookOpen,
   Calendar,
-  Check,
-  TrendingUp,
   Award,
-  ChevronRight,
   Loader2,
   X,
-  RefreshCw,
+  Play,
 } from 'lucide-react';
 
 interface CardWithProgress extends VocabCard {
@@ -58,10 +54,12 @@ export const FlashcardsTab: React.FC = () => {
   // Chế độ ôn tập: Lật thẻ (flip) vs Đọc to (voice)
   const [studyMode, setStudyMode] = useState<'flip' | 'voice'>('flip');
 
-  // Dữ liệu thẻ và tiến trình
-  // Khởi tạo ngay lập tức với 122 thẻ nạp sẵn để người dùng mở ra là học được ngay
+  // Danh sách từ vựng & tiến trình
   const [allCards, setAllCards] = useState<CardWithProgress[]>(INITIAL_VOCAB_CARDS);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Phân trang / Lazy load 30 từ một lần để không giật lag khi CSDL nhiều nghìn từ
+  const [visibleCount, setVisibleCount] = useState<number>(30);
 
   // Buổi học hiện tại
   const [isStudying, setIsStudying] = useState(false);
@@ -76,6 +74,27 @@ export const FlashcardsTab: React.FC = () => {
   const [voiceScore, setVoiceScore] = useState<ScoreOutput | null>(null);
   const [autoAdvanceTimer, setAutoAdvanceTimer] = useState<NodeJS.Timeout | null>(null);
 
+  // Lưu và tiếp tục tiến trình học dở (để lần sau vào học tiếp mà không mất)
+  const sessionSaveKey = `lao_su_mei_fc_session_${activeDeck}_${selectedHskLevel}_${selectedCategory}`;
+  const [savedSessionIndex, setSavedSessionIndex] = useState<number | null>(null);
+
+  // Đọc lại phiên học dở khi đổi bộ lọc
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(sessionSaveKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.index === 'number' && parsed.index > 0) {
+          setSavedSessionIndex(parsed.index);
+          return;
+        }
+      }
+    } catch (e) {}
+    setSavedSessionIndex(null);
+    setVisibleCount(30); // reset lazy load về 30 từ đầu
+  }, [sessionSaveKey]);
+
+  // Cập nhật thẻ hiện tại
   const currentCard = studyQueue[currentIndex];
 
   // Tự động phát âm khi sang từ mới trong buổi học ôn tập
@@ -111,7 +130,7 @@ export const FlashcardsTab: React.FC = () => {
 
     try {
       if (isSupabaseConfigured) {
-        // 1. Tải danh sách thẻ
+        // 1. Tải danh sách thẻ từ Database (nếu người dùng thêm từ mới)
         const { data: cardsData } = await supabase
           .from('vocab_cards')
           .select('*')
@@ -157,16 +176,18 @@ export const FlashcardsTab: React.FC = () => {
         }
       }
     } catch (err) {
-      console.warn('Lỗi tải tiến trình thẻ, dùng bộ nhớ cục bộ:', err);
+      console.warn('Lỗi tải tiến trình thẻ từ Supabase, dùng bộ nhớ cục bộ:', err);
     }
 
-    // Fallback cho chế độ khách (localStorage)
-    if (!user && typeof window !== 'undefined') {
+    // Fallback đọc LocalStorage
+    if (typeof window !== 'undefined') {
       try {
         const localProg = JSON.parse(localStorage.getItem('webchinese_card_progress') || '{}');
         Object.keys(localProg).forEach((cardIdStr) => {
           const cardId = Number(cardIdStr);
-          progressMap.set(cardId, localProg[cardIdStr]);
+          if (!progressMap.has(cardId)) {
+            progressMap.set(cardId, localProg[cardIdStr]);
+          }
         });
       } catch (e) {}
     }
@@ -196,7 +217,7 @@ export const FlashcardsTab: React.FC = () => {
     return true;
   });
 
-  // Phân loại thẻ: Đến hạn (due) vs Thẻ mới (new)
+  // Phân loại thẻ: Đến hạn (due) vs Thẻ mới (new) vs Đã thuộc
   const now = new Date();
   const dueCards = filteredCards.filter(
     (c) => c.progress && new Date(c.progress.dueAt) <= now
@@ -206,37 +227,135 @@ export const FlashcardsTab: React.FC = () => {
     (c) => c.progress && c.progress.repetitions >= 3
   );
 
-  // Số lượng thẻ mới giới hạn theo cài đặt
-  const dailyLimit = settings.dailyNewCards || 10;
-  const newCardsForToday = newCards.slice(0, dailyLimit);
-  const totalCardsToStudy = dueCards.length + newCardsForToday.length;
-
-  // Bắt đầu buổi học
-  const startSession = () => {
-    const queue = [...dueCards, ...newCardsForToday];
-    if (queue.length === 0) {
-      // Nếu đã ôn hết, cho phép ôn lại 10 thẻ bất kỳ
-      const practiceMore = filteredCards.slice(0, 10);
-      if (practiceMore.length === 0) {
-        alert('Chưa có thẻ nào trong bộ này.');
-        return;
-      }
-      setStudyQueue(practiceMore);
-    } else {
-      setStudyQueue(queue);
+  // Bắt đầu buổi học: KHÔNG GIỚI HẠN SỐ TỪ - học bao nhiêu từ tùy thích
+  const startSession = (resumeFromIndex: number = 0) => {
+    if (filteredCards.length === 0) {
+      alert('Chưa có thẻ nào trong bộ này.');
+      return;
     }
-    setCurrentIndex(0);
+
+    // Đưa thẻ cần ôn lên đầu, sau đó đến thẻ mới và thẻ đã thuộc
+    const queue = [
+      ...dueCards,
+      ...newCards,
+      ...masteredCards.filter((c) => !dueCards.includes(c)),
+    ];
+
+    const finalQueue = queue.length > 0 ? queue : filteredCards;
+    setStudyQueue(finalQueue);
+
+    const safeIndex = Math.min(resumeFromIndex, Math.max(0, finalQueue.length - 1));
+    setCurrentIndex(safeIndex);
     setIsFlipped(false);
     setIsStudying(true);
     setIsSessionFinished(false);
-    setSessionCompletedCount(0);
+    setSessionCompletedCount(safeIndex);
     setHeardText('');
     setVoiceScore(null);
+
+    // Lưu lại vị trí để lần sau tiếp tục
+    try {
+      localStorage.setItem(
+        sessionSaveKey,
+        JSON.stringify({ index: safeIndex, total: finalQueue.length, time: Date.now() })
+      );
+    } catch (e) {}
   };
 
-  // Đọc phát âm Hán tự qua playZhAudio
+  // Phát âm Hán tự
   const speakHanzi = (text: string, rate: number = 1.0) => {
     playZhAudio(text, rate);
+  };
+
+  // Lật qua lật lại mặt trước / sau (chữ Hán ⇋ nghĩa Việt)
+  const toggleFlip = () => {
+    setIsFlipped((prev) => {
+      const next = !prev;
+      if (next && currentCard) {
+        speakHanzi(currentCard.hanzi, settings.speechRate || 1.0);
+      }
+      return next;
+    });
+  };
+
+  // Chuyển thẻ tiếp theo ngay lập tức 0ms
+  const handleNextCard = () => {
+    if (currentIndex + 1 < studyQueue.length) {
+      const nextIdx = currentIndex + 1;
+      setCurrentIndex(nextIdx);
+      setIsFlipped(false);
+      setHeardText('');
+      setVoiceScore(null);
+      // Lưu lại tiến trình
+      try {
+        localStorage.setItem(
+          sessionSaveKey,
+          JSON.stringify({ index: nextIdx, total: studyQueue.length, time: Date.now() })
+        );
+      } catch (e) {}
+    } else {
+      setIsSessionFinished(true);
+      setIsStudying(false);
+      try {
+        localStorage.removeItem(sessionSaveKey);
+      } catch (e) {}
+    }
+  };
+
+  // Về thẻ trước đó
+  const handlePrevCard = () => {
+    if (currentIndex > 0) {
+      const prevIdx = currentIndex - 1;
+      setCurrentIndex(prevIdx);
+      setIsFlipped(false);
+      setHeardText('');
+      setVoiceScore(null);
+      try {
+        localStorage.setItem(
+          sessionSaveKey,
+          JSON.stringify({ index: prevIdx, total: studyQueue.length, time: Date.now() })
+        );
+      } catch (e) {}
+    }
+  };
+
+  // Lưu tiến trình chạy ngầm KHÔNG block UI
+  const saveProgressInBackground = (cardId: number, progress: UserCardProgress) => {
+    // 1. Lưu LocalStorage ngay lập tức
+    if (typeof window !== 'undefined') {
+      try {
+        const localProg = JSON.parse(localStorage.getItem('webchinese_card_progress') || '{}');
+        localProg[cardId] = progress;
+        localStorage.setItem('webchinese_card_progress', JSON.stringify(localProg));
+      } catch (e) {}
+    }
+
+    // 2. Đồng bộ ngầm lên Supabase nếu có đăng nhập
+    if (user && isSupabaseConfigured) {
+      (async () => {
+        try {
+          await supabase.from('user_card_progress').upsert({
+            user_id: user.id,
+            card_id: cardId,
+            ease: progress.ease,
+            interval_days: progress.intervalDays,
+            repetitions: progress.repetitions,
+            lapses: progress.lapses,
+            due_at: progress.dueAt,
+            last_reviewed_at: progress.lastReviewedAt,
+          });
+
+          const todayVn = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+          await supabase.rpc('increment_daily_activity', {
+            p_user_id: user.id,
+            p_day: todayVn,
+            p_column: 'cards_reviewed',
+          });
+        } catch (err) {
+          console.warn('Lưu ngầm tiến trình thẻ:', err);
+        }
+      })();
+    }
   };
 
   // Chấm điểm phát âm ở chế độ Đọc to
@@ -246,16 +365,15 @@ export const FlashcardsTab: React.FC = () => {
 
     if (res.passed) {
       setIsFlipped(true);
-      // Tự động đánh giá Good sau 1.8 giây nếu người dùng không bấm nút khác
       const timer = setTimeout(() => {
         handleRateCard('good');
-      }, 1800);
+      }, 1500);
       setAutoAdvanceTimer(timer);
     }
   };
 
-  // Đánh giá thẻ (Again, Hard, Good, Easy) theo SM-2
-  const handleRateCard = async (rating: CardRating) => {
+  // Đánh giá thẻ (Again, Hard, Good, Easy) theo SM-2 và CHUYỂN NGAY 0ms
+  const handleRateCard = (rating: CardRating) => {
     if (autoAdvanceTimer) {
       clearTimeout(autoAdvanceTimer);
       setAutoAdvanceTimer(null);
@@ -276,133 +394,84 @@ export const FlashcardsTab: React.FC = () => {
       lastReviewedAt: new Date().toISOString(),
     };
 
-    // Cập nhật state nội bộ
+    // Cập nhật state nội bộ ngay lập tức
     setAllCards((prev) =>
       prev.map((c) => (c.id === currentCard.id ? { ...c, progress: newProgress } : c))
     );
 
-    // Lưu vào Supabase hoặc LocalStorage
-    if (user && isSupabaseConfigured) {
-      try {
-        await supabase.from('user_card_progress').upsert({
-          user_id: user.id,
-          card_id: currentCard.id,
-          ease: newProgress.ease,
-          interval_days: newProgress.intervalDays,
-          repetitions: newProgress.repetitions,
-          lapses: newProgress.lapses,
-          due_at: newProgress.dueAt,
-          last_reviewed_at: newProgress.lastReviewedAt,
-        });
-
-        // Tăng daily_activity.cards_reviewed
-        const todayVn = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
-        try {
-          await supabase.rpc('increment_daily_activity', {
-            p_user_id: user.id,
-            p_day: todayVn,
-            p_column: 'cards_reviewed',
-          });
-        } catch {
-          await supabase.from('daily_activity').upsert({
-            user_id: user.id,
-            day: todayVn,
-            cards_reviewed: 1,
-          });
-        }
-      } catch (err) {
-        console.error('Lỗi lưu tiến trình thẻ:', err);
-      }
-    } else if (typeof window !== 'undefined') {
-      try {
-        const localProg = JSON.parse(localStorage.getItem('webchinese_card_progress') || '{}');
-        localProg[currentCard.id] = newProgress;
-        localStorage.setItem('webchinese_card_progress', JSON.stringify(localProg));
-      } catch (e) {}
-    }
-
-    // Nếu đánh giá 'again' (quên), đưa thẻ về cuối hàng đợi để ôn lại ngay trong phiên
-    if (rating === 'again') {
-      setStudyQueue((prev) => [...prev, currentCard]);
-    }
+    // Lưu ngầm
+    saveProgressInBackground(currentCard.id, newProgress);
 
     setSessionCompletedCount((prev) => prev + 1);
 
-    // Sang thẻ tiếp theo
-    if (currentIndex + 1 < studyQueue.length) {
-      setCurrentIndex((prev) => prev + 1);
-      setIsFlipped(false);
-      setHeardText('');
-      setVoiceScore(null);
-    } else {
-      setIsSessionFinished(true);
-      setIsStudying(false);
-    }
+    // Chuyển thẻ tiếp theo
+    handleNextCard();
   };
 
-  const estimatedIntervals = currentCard ? getEstimatedIntervals(currentCard.progress) : null;
+  const estimatedIntervals = currentCard
+    ? getEstimatedIntervals(currentCard.progress)
+    : null;
 
   return (
-    <div className="pb-24 pt-4 px-4 max-w-md mx-auto animate-fade-in">
+    <div className="pb-24 pt-3 px-4 max-w-md mx-auto animate-fade-in">
       {/* ============================================================== */}
-      {/* 1. MÀN HÌNH CHÍNH (DANH SÁCH & BẮT ĐẦU ÔN) */}
+      {/* 1. MÀN HÌNH SẢNH CHỌN BỘ THẺ ÔN TẬP */}
       {/* ============================================================== */}
       {!isStudying && !isSessionFinished && (
         <div className="space-y-4">
-          {/* Header */}
+          {/* Header tiêu đề */}
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-black text-stone-900 flex items-center gap-2">
-                <span>🗂</span>
+                <span>📦</span>
                 <span>Từ vựng Flashcard</span>
               </h2>
               <p className="text-xs text-stone-500 mt-0.5">
-                Ôn ngắt quãng SM-2 · Nhớ lâu hơn gấp 3 lần
+                Ôn ngắt quãng SM-2 · Nhớ lâu hơn gấp 3 lần · Học không giới hạn
               </p>
             </div>
-            <div className="w-9 h-9 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs shadow-2xs">
+            <div className="px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold">
               SM2
             </div>
           </div>
 
-          {/* Công tắc chọn bộ thẻ: [ HSK 1–4 ] [ Công sở ] */}
-          <div className="p-1 bg-stone-200/70 rounded-2xl flex items-center gap-1 shadow-inner">
+          {/* Chọn nguồn thẻ: HSK 1-4 vs Công sở */}
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => {
                 setActiveDeck('hsk');
-                setSelectedHskLevel('all');
               }}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+              className={`py-2.5 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                 activeDeck === 'hsk'
-                  ? 'bg-white text-stone-900 shadow-sm'
-                  : 'text-stone-600 hover:text-stone-900'
+                  ? 'border-red-500 bg-red-50 text-red-700 shadow-2xs ring-1 ring-red-500/20'
+                  : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
               }`}
             >
-              <BookOpen className="w-3.5 h-3.5 text-red-600" />
+              <BookOpen className="w-4 h-4 text-red-600" />
               <span>Giao tiếp HSK 1–4</span>
             </button>
+
             <button
               type="button"
               onClick={() => {
                 setActiveDeck('workplace');
-                setSelectedCategory('all');
               }}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+              className={`py-2.5 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                 activeDeck === 'workplace'
-                  ? 'bg-white text-stone-900 shadow-sm'
-                  : 'text-stone-600 hover:text-stone-900'
+                  ? 'border-red-500 bg-red-50 text-red-700 shadow-2xs ring-1 ring-red-500/20'
+                  : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
               }`}
             >
-              <Briefcase className="w-3.5 h-3.5 text-red-600" />
+              <Briefcase className="w-4 h-4 text-red-600" />
               <span>Từ vựng Công sở</span>
             </button>
           </div>
 
-          {/* Bộ lọc phụ: Cấp độ HSK hoặc Chuyên mục Công sở */}
+          {/* Bộ lọc cấp độ HSK hoặc nhóm Công sở */}
           {activeDeck === 'hsk' ? (
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-xs">
-              {['all', 1, 2, 3, 4].map((lvl) => (
+              {(['all', 1, 2, 3, 4] as const).map((lvl) => (
                 <button
                   key={lvl}
                   type="button"
@@ -437,19 +506,19 @@ export const FlashcardsTab: React.FC = () => {
             </div>
           )}
 
-          {/* Thẻ thống kê tổng quan */}
+          {/* Thẻ thống kê tổng quan (HỌC KHÔNG GIỚI HẠN) */}
           <div className="bg-white rounded-3xl p-5 border border-stone-200/90 shadow-2xs space-y-4">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="p-3 bg-red-50/70 rounded-2xl border border-red-100">
                 <div className="text-xl font-black text-red-600">{dueCards.length}</div>
                 <div className="text-[11px] font-bold text-red-900 mt-0.5">Cần ôn</div>
-                <div className="text-[10px] text-red-600/80">đến hạn hôm nay</div>
+                <div className="text-[10px] text-red-600/80">đến hạn ôn lại</div>
               </div>
 
               <div className="p-3 bg-amber-50/70 rounded-2xl border border-amber-100">
-                <div className="text-xl font-black text-amber-600">{newCardsForToday.length}</div>
-                <div className="text-[11px] font-bold text-amber-900 mt-0.5">Thẻ mới</div>
-                <div className="text-[10px] text-amber-600/80">giới hạn {dailyLimit}/ngày</div>
+                <div className="text-xl font-black text-amber-600">{filteredCards.length}</div>
+                <div className="text-[11px] font-bold text-amber-900 mt-0.5">Tổng số thẻ</div>
+                <div className="text-[10px] text-amber-600/80">học không giới hạn</div>
               </div>
 
               <div className="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-100">
@@ -503,10 +572,30 @@ export const FlashcardsTab: React.FC = () => {
               </div>
             </div>
 
-            {/* Nút bắt đầu buổi học */}
+            {/* Nút tiếp tục học dở nếu có */}
+            {savedSessionIndex !== null && savedSessionIndex > 0 && savedSessionIndex < filteredCards.length && (
+              <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-amber-900">
+                    📖 Bạn đang học dở thẻ {savedSessionIndex + 1}/{filteredCards.length}
+                  </div>
+                  <div className="text-[10px] text-amber-700">Tiến trình đã được lưu lại an toàn</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => startSession(savedSessionIndex)}
+                  className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs active:scale-95"
+                >
+                  <Play className="w-3.5 h-3.5 fill-white" />
+                  <span>Học tiếp</span>
+                </button>
+              </div>
+            )}
+
+            {/* Nút bắt đầu học toàn bộ thẻ */}
             <button
               type="button"
-              onClick={startSession}
+              onClick={() => startSession(0)}
               disabled={isLoading || filteredCards.length === 0}
               className="w-full py-3.5 px-4 rounded-2xl bg-red-600 hover:bg-red-700 disabled:bg-stone-300 text-white font-bold text-sm shadow-md shadow-red-600/20 active:scale-98 transition-all flex items-center justify-center gap-2"
             >
@@ -518,13 +607,13 @@ export const FlashcardsTab: React.FC = () => {
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>Bắt đầu ôn tập ({totalCardsToStudy > 0 ? `${totalCardsToStudy} thẻ` : 'Ôn tự do'})</span>
+                  <span>Bắt đầu học toàn bộ ({filteredCards.length} thẻ)</span>
                 </>
               )}
             </button>
           </div>
 
-          {/* Danh sách xem nhanh thẻ trong bộ */}
+          {/* DANH SÁCH XEM NHANH (PHÂN ĐOẠN 30 TỪ ĐỂ KHÔNG BỊ LAG) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
               <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
@@ -534,7 +623,7 @@ export const FlashcardsTab: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-3xl border border-stone-200/90 divide-y divide-stone-100 shadow-2xs overflow-hidden">
-              {filteredCards.slice(0, 8).map((card) => (
+              {filteredCards.slice(0, visibleCount).map((card) => (
                 <div
                   key={card.id}
                   className="p-3.5 flex items-center justify-between hover:bg-stone-50/80 transition-colors"
@@ -549,29 +638,32 @@ export const FlashcardsTab: React.FC = () => {
                       <Volume2 className="w-4 h-4" />
                     </button>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-baseline gap-2">
                         <span className="font-black text-stone-900 text-base">{card.hanzi}</span>
-                        <span className="text-xs text-stone-500 font-mono">[{card.pinyin}]</span>
+                        <span className="text-xs font-bold text-red-600 font-mono">[{card.pinyin}]</span>
                       </div>
-                      <div className="text-xs text-stone-600 truncate mt-0.5">{card.vi}</div>
+                      <div className="text-xs text-stone-600 truncate">{card.vi}</div>
                     </div>
                   </div>
 
-                  {card.progress ? (
+                  {card.progress && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      {card.progress.intervalDays} ngày
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">
-                      Chưa học
+                      Nhớ {card.progress.repetitions} lần
                     </span>
                   )}
                 </div>
               ))}
 
-              {filteredCards.length > 8 && (
-                <div className="p-3 text-center text-xs text-stone-500 font-medium bg-stone-50/50">
-                  Và còn {filteredCards.length - 8} thẻ từ vựng khác trong bộ này...
+              {/* Tải thêm 30 từ khi lướt xuống để mượt mà không lag */}
+              {filteredCards.length > visibleCount && (
+                <div className="p-3 bg-stone-50/70 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((prev) => prev + 30)}
+                    className="py-2 px-4 rounded-xl bg-white hover:bg-stone-100 border border-stone-200 text-stone-700 font-bold text-xs shadow-2xs active:scale-95 transition-all"
+                  >
+                    ⬇️ Tải thêm 30 từ tiếp theo (còn {filteredCards.length - visibleCount} từ)
+                  </button>
                 </div>
               )}
             </div>
@@ -589,7 +681,7 @@ export const FlashcardsTab: React.FC = () => {
             <button
               type="button"
               onClick={() => {
-                if (confirm('Bạn có chắc muốn tạm dừng buổi ôn tập này không?')) {
+                if (confirm('Bạn có muốn tạm dừng? Tiến trình của bạn đã được lưu lại để học tiếp.')) {
                   setIsStudying(false);
                 }
               }}
@@ -619,10 +711,13 @@ export const FlashcardsTab: React.FC = () => {
             />
           </div>
 
-          {/* KHỐI THẺ FLASHCARD CHÍNH */}
-          <div className="bg-white rounded-3xl border-2 border-stone-200/90 shadow-md p-6 min-h-[360px] flex flex-col justify-between relative transition-all">
+          {/* KHỐI THẺ FLASHCARD CHÍNH (BẤM VÀO BẤT KỲ ĐÂU ĐỂ LẬT MẶT TRƯỚC / SAU) */}
+          <div
+            onClick={toggleFlip}
+            className="bg-white rounded-3xl border-2 border-stone-200/90 shadow-md p-6 min-h-[380px] flex flex-col justify-between relative transition-all active:scale-[0.99] cursor-pointer select-none hover:border-red-300"
+          >
             {/* Phía trên thẻ: Nút nghe phát âm */}
-            <div className="flex items-center justify-between w-full">
+            <div className="flex items-center justify-between w-full" onClick={(e) => e.stopPropagation()}>
               <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">
                 {currentCard.deck === 'hsk'
                   ? `HSK ${currentCard.hskLevel || 1}`
@@ -649,13 +744,13 @@ export const FlashcardsTab: React.FC = () => {
               </div>
             </div>
 
-            {/* MẶT TRƯỚC: CHỮ HÁN TO ≥ 36PX */}
-            <div className="my-auto text-center py-6">
+            {/* NỘI DUNG MẶT TRƯỚC / MẶT SAU */}
+            <div className="my-auto text-center py-4">
               <div className="text-5xl font-black text-stone-900 tracking-wide font-sans mb-3">
                 {currentCard.hanzi}
               </div>
 
-              {/* Nếu đã lật: Hiện pinyin và nghĩa Việt */}
+              {/* Nếu đã lật: Hiện pinyin, nghĩa Việt và ví dụ */}
               {isFlipped ? (
                 <div className="space-y-3 animate-fade-in">
                   <div className="text-xl font-bold text-red-600 font-mono">
@@ -667,7 +762,10 @@ export const FlashcardsTab: React.FC = () => {
 
                   {/* Câu ví dụ thực tế */}
                   {currentCard.exampleHanzi && (
-                    <div className="mt-4 p-3 bg-stone-50 rounded-2xl border border-stone-200 text-left">
+                    <div
+                      className="mt-4 p-3 bg-stone-50 rounded-2xl border border-stone-200 text-left"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">
                         Ví dụ thực tế:
                       </div>
@@ -681,189 +779,185 @@ export const FlashcardsTab: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="text-xs text-stone-400 mt-2">
-                  {studyMode === 'flip'
-                    ? 'Chạm nút bên dưới hoặc lật thẻ để xem pinyin & nghĩa'
-                    : 'Bấm mic đọc to chữ Hán trên để kiểm tra'}
+                <div className="text-xs text-stone-400 mt-2 flex items-center justify-center gap-1">
+                  <span>👆 Chạm vào thẻ hoặc bấm nút dưới để lật</span>
                 </div>
               )}
             </div>
 
-            {/* PHẦN ĐIỀU KHIỂN & CHẤM ĐIỂM (TÙY THEO CHẾ ĐỘ VÀ TRẠNG THÁI LẬT) */}
-            <div className="pt-4 border-t border-stone-100">
-              {!isFlipped ? (
-                studyMode === 'flip' ? (
-                  // Chế độ Lật thẻ: Nút lật to
+            {/* DƯỚI THẺ: THANH CHỈ BÁO LẬT */}
+            <div className="text-center pt-2">
+              <span className="text-[11px] font-semibold text-stone-400">
+                {isFlipped ? '🔄 Đang hiện: Mặt sau (Nghĩa tiếng Việt)' : '🔄 Đang hiện: Mặt trước (Chữ Hán)'}
+              </span>
+            </div>
+          </div>
+
+          {/* PHẦN ĐIỀU KHIỂN & CHUYỂN THẺ TIẾP THEO (KHÔNG BAO GIỜ BỊ KẸT) */}
+          <div className="space-y-3">
+            {/* 1. Hàng nút điều hướng và lật thẻ linh hoạt */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePrevCard}
+                disabled={currentIndex === 0}
+                className="py-3 px-3.5 rounded-2xl bg-stone-100 hover:bg-stone-200 disabled:opacity-40 text-stone-700 font-bold text-xs flex items-center gap-1 active:scale-95 transition-all shadow-2xs"
+                title="Về thẻ trước"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Trước</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleFlip}
+                className="flex-1 py-3 px-4 rounded-2xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 active:scale-98 transition-all"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>{isFlipped ? 'Lật về chữ Hán' : 'Lật xem nghĩa & Pinyin'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNextCard}
+                className="py-3 px-4 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+                title="Sang thẻ tiếp theo"
+              >
+                <span>{currentIndex + 1 === studyQueue.length ? 'Hoàn thành' : 'Tiếp'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Chế độ Đọc to (Voice Mode): Mic thu âm & Chấm điểm */}
+            {studyMode === 'voice' && !isFlipped && (
+              <div className="space-y-2 p-3 bg-white rounded-2xl border border-stone-200">
+                {voiceScore && (
+                  <div className="flex items-center justify-between pb-2 border-b border-stone-100">
+                    <div className="text-xs font-bold text-stone-700">
+                      Bạn đã đọc: <span className="text-stone-900">{heardText || '(chưa nghe rõ)'}</span>
+                    </div>
+                    <ScoreRing score={voiceScore.score} size="sm" />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => (isListening ? stopListening() : startListening())}
+                  className={`w-full py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                    isListening
+                      ? 'bg-amber-500 text-white animate-pulse'
+                      : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                  }`}
+                >
+                  {isListening ? (
+                    <>
+                      <Square className="w-3.5 h-3.5 fill-white" />
+                      <span>Đang nghe... bấm để dừng</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-3.5 h-3.5" />
+                      <span>Bấm mic đọc to chữ Hán này</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* 4 NÚT ĐÁNH GIÁ THEO SM-2: BẤM VÀO LƯU NGẦM VÀ QUA CÂU NGAY 0ms */}
+            {isFlipped && (
+              <div className="space-y-2 p-3 bg-white rounded-2xl border border-stone-200 animate-fade-in">
+                <div className="text-[11px] font-bold text-stone-500 text-center uppercase tracking-wider">
+                  Bạn nhớ từ này thế nào? (Bấm để qua câu tiếp)
+                </div>
+
+                <div className="grid grid-cols-4 gap-1.5">
+                  {/* 1. Quên */}
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsFlipped(true);
-                      speakHanzi(currentCard.hanzi, settings.speechRate || 1.0);
-                    }}
-                    className="w-full py-3.5 px-4 rounded-2xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-sm shadow-md active:scale-98 transition-all flex items-center justify-center gap-2"
+                    onClick={() => handleRateCard('again')}
+                    className="p-2.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-center active:scale-95 transition-all"
                   >
-                    <RotateCcw className="w-4 h-4" />
-                    <span>Lật thẻ xem đáp án</span>
+                    <div className="text-xs font-black text-red-600">Quên</div>
+                    <div className="text-[10px] text-red-500 mt-0.5">{estimatedIntervals?.again || 'Ngày mai'}</div>
                   </button>
-                ) : (
-                  // Chế độ Đọc to: Nút mic & Chấm điểm
-                  <div className="space-y-3">
-                    {voiceScore && (
-                      <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200 flex items-center justify-between">
-                        <div>
-                          <div className="text-xs font-bold text-stone-700">
-                            Bạn đã đọc: <span className="text-stone-900">{heardText || '(chưa nghe rõ)'}</span>
-                          </div>
-                          <div className="mt-1">
-                            <SyllableDiff perSyllable={voiceScore.perSyllable} extra={voiceScore.extra} />
-                          </div>
-                        </div>
-                        <ScoreRing score={voiceScore.score} size="sm" />
-                      </div>
-                    )}
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => (isListening ? stopListening() : startListening())}
-                        className={`flex-1 py-3.5 px-4 rounded-2xl font-bold text-sm shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 ${
-                          isListening
-                            ? 'bg-amber-500 text-white animate-pulse'
-                            : 'bg-red-600 text-white hover:bg-red-700 shadow-red-600/20'
-                        }`}
-                      >
-                        {isListening ? (
-                          <>
-                            <Square className="w-4 h-4 fill-white" />
-                            <span>Đang nghe... bấm để dừng</span>
-                          </>
-                        ) : (
-                          <>
-                            <Mic className="w-4 h-4" />
-                            <span>Bấm mic & Đọc to</span>
-                          </>
-                        )}
-                      </button>
+                  {/* 2. Khó */}
+                  <button
+                    type="button"
+                    onClick={() => handleRateCard('hard')}
+                    className="p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-center active:scale-95 transition-all"
+                  >
+                    <div className="text-xs font-black text-amber-600">Khó</div>
+                    <div className="text-[10px] text-amber-500 mt-0.5">{estimatedIntervals?.hard || '2 ngày'}</div>
+                  </button>
 
-                      <button
-                        type="button"
-                        onClick={() => setIsFlipped(true)}
-                        className="py-3.5 px-3 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs transition-colors"
-                        title="Bỏ qua và xem đáp án"
-                      >
-                        Xem đáp án
-                      </button>
-                    </div>
-                  </div>
-                )
-              ) : (
-                // ĐÃ LẬT: 4 NÚT ĐÁNH GIÁ THEO SM-2
-                <div className="space-y-2">
-                  <div className="text-[11px] font-bold text-stone-500 text-center uppercase tracking-wider">
-                    Bạn nhớ từ này thế nào?
-                  </div>
+                  {/* 3. Tốt */}
+                  <button
+                    type="button"
+                    onClick={() => handleRateCard('good')}
+                    className="p-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-center active:scale-95 transition-all"
+                  >
+                    <div className="text-xs font-black text-blue-600">Tốt</div>
+                    <div className="text-[10px] text-blue-500 mt-0.5">{estimatedIntervals?.good || '3 ngày'}</div>
+                  </button>
 
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {/* 1. Quên (Again) */}
-                    <button
-                      type="button"
-                      onClick={() => handleRateCard('again')}
-                      className="p-2.5 rounded-2xl bg-red-50 hover:bg-red-100 border border-red-200 text-center active:scale-95 transition-all"
-                    >
-                      <div className="text-sm font-black text-red-600">Quên</div>
-                      <div className="text-[10px] text-red-500 mt-0.5">
-                        {estimatedIntervals?.again || '1 ngày'}
-                      </div>
-                    </button>
-
-                    {/* 2. Khó (Hard) */}
-                    <button
-                      type="button"
-                      onClick={() => handleRateCard('hard')}
-                      className="p-2.5 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-center active:scale-95 transition-all"
-                    >
-                      <div className="text-sm font-black text-amber-600">Khó</div>
-                      <div className="text-[10px] text-amber-500 mt-0.5">
-                        {estimatedIntervals?.hard || '3 ngày'}
-                      </div>
-                    </button>
-
-                    {/* 3. Tốt (Good) */}
-                    <button
-                      type="button"
-                      onClick={() => handleRateCard('good')}
-                      className="p-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-center active:scale-95 transition-all"
-                    >
-                      <div className="text-sm font-black text-blue-600">Tốt</div>
-                      <div className="text-[10px] text-blue-500 mt-0.5">
-                        {estimatedIntervals?.good || '6 ngày'}
-                      </div>
-                    </button>
-
-                    {/* 4. Dễ (Easy) */}
-                    <button
-                      type="button"
-                      onClick={() => handleRateCard('easy')}
-                      className="p-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-center active:scale-95 transition-all"
-                    >
-                      <div className="text-sm font-black text-emerald-600">Dễ</div>
-                      <div className="text-[10px] text-emerald-500 mt-0.5">
-                        {estimatedIntervals?.easy || '8+ ngày'}
-                      </div>
-                    </button>
-                  </div>
+                  {/* 4. Dễ */}
+                  <button
+                    type="button"
+                    onClick={() => handleRateCard('easy')}
+                    className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-center active:scale-95 transition-all"
+                  >
+                    <div className="text-xs font-black text-emerald-600">Dễ</div>
+                    <div className="text-[10px] text-emerald-500 mt-0.5">{estimatedIntervals?.easy || '5 ngày'}</div>
+                  </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* ============================================================== */}
-      {/* 3. MÀN HÌNH TỔNG KẾT PHIÊN HỌC (SESSION FINISHED) */}
+      {/* 3. MÀN HÌNH TỔNG KẾT BUỔI HỌC FLASHCARD */}
       {/* ============================================================== */}
       {isSessionFinished && (
-        <div className="bg-white rounded-3xl p-6 border border-stone-200/90 shadow-sm text-center space-y-4 animate-scale-up">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
-            <Award className="w-8 h-8" />
+        <div className="text-center py-6 animate-fade-in space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-3xl shadow-xs">
+            🎉
           </div>
-
           <div>
-            <h3 className="text-xl font-black text-stone-900">Hoàn thành buổi ôn!</h3>
-            <p className="text-xs text-stone-500 mt-1">
-              Bạn đã ôn tập xong {sessionCompletedCount} lượt từ vựng hôm nay.
+            <h2 className="text-xl font-black text-stone-900 mb-1">Hoàn thành buổi ôn tập!</h2>
+            <p className="text-xs text-stone-500">
+              Bạn đã ôn luyện xong các thẻ trong lượt này. Trí nhớ dài hạn đã được củng cố!
             </p>
           </div>
 
-          <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200/70 text-xs text-stone-600 space-y-2 text-left">
-            <div className="flex items-center justify-between">
-              <span className="font-bold">Tổng lượt thẻ đã ôn:</span>
-              <span className="font-black text-stone-900">{sessionCompletedCount} thẻ</span>
+          <div className="bg-white rounded-3xl p-5 border border-stone-200 shadow-xs text-left space-y-3">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100 text-xs">
+              <span className="text-stone-500">Số thẻ đã hoàn thành:</span>
+              <span className="font-bold text-stone-900">{sessionCompletedCount} thẻ</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-bold">Thuật toán SM-2:</span>
-              <span className="text-emerald-600 font-bold">Đã tự động tính lịch ôn kế tiếp</span>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-stone-500">Lịch ôn tập tiếp theo:</span>
+              <span className="font-bold text-emerald-700">Tự động tính theo thuật toán SM-2</span>
             </div>
           </div>
 
           <div className="space-y-2 pt-2">
             <button
               type="button"
-              onClick={() => {
-                setIsSessionFinished(false);
-                fetchCardsAndProgress();
-              }}
-              className="w-full py-3 px-4 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md shadow-red-600/20 active:scale-98 transition-all"
+              onClick={() => startSession(0)}
+              className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-sm shadow-md active:scale-98 transition-all flex items-center justify-center gap-2"
             >
-              Quay lại danh sách từ vựng
+              <RotateCcw className="w-4 h-4" />
+              <span>Ôn tập lại từ đầu</span>
             </button>
-
             <button
               type="button"
-              onClick={startSession}
-              className="w-full py-3 px-4 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs active:scale-98 transition-all"
+              onClick={() => setIsSessionFinished(false)}
+              className="w-full py-3 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-2xl font-semibold text-xs transition-colors"
             >
-              Ôn thêm một phiên nữa
+              Quay lại danh mục
             </button>
           </div>
         </div>

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { pinyin } from 'pinyin-pro';
-import { ConversationMode, PhraseGroup, PhrasePair, ScoreOutput } from '../types';
+import { PhraseGroup, PhrasePair, ScoreOutput } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { evaluatePronunciation } from '../lib/scoring';
@@ -8,29 +8,22 @@ import { getTipForSyllable } from '../lib/pronunciationTips';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { ScoreRing } from '../components/ScoreRing';
 import { SyllableDiff } from '../components/SyllableDiff';
-import { ZhText } from '../components/ZhText';
 import { playZhAudio } from '../lib/audio';
 import { INITIAL_PHRASE_GROUPS, INITIAL_PHRASE_PAIRS } from '../lib/initialData';
 import {
   Headphones,
-  Sparkles,
   Volume2,
   Turtle,
   RotateCcw,
   Mic,
   ArrowRight,
   ArrowLeft,
-  CheckCircle2,
-  AlertCircle,
-  Eye,
   EyeOff,
   Type,
-  BookMarked,
-  Star,
   Coffee,
   Briefcase,
-  Loader2,
   Square,
+  Sparkles,
 } from 'lucide-react';
 
 interface ShadowingTabProps {
@@ -40,10 +33,8 @@ interface ShadowingTabProps {
 export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => {
   const { user, settings } = useAuth();
 
-  // Trạng thái nguồn và chế độ (khởi tạo ngay với nhóm có sẵn)
-  const [sourceType, setSourceType] = useState<'daily' | 'workplace' | 'mistakes' | 'favorites'>('daily');
-  const [mode, setMode] = useState<'mimic' | 'qa'>('mimic'); // Nhại lại vs Đối đáp
-  const [groups, setGroups] = useState<PhraseGroup[]>(INITIAL_PHRASE_GROUPS);
+  // Nguồn bài luyện: 2 nhóm chính Đời sống (8 nhóm) & Công sở (6 nhóm)
+  const [sourceType, setSourceType] = useState<'daily' | 'workplace'>('daily');
   const [selectedGroup, setSelectedGroup] = useState<PhraseGroup | null>(null);
   const [practiceQueue, setPracticeQueue] = useState<PhrasePair[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -53,14 +44,12 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
   // Cài đặt hiển thị trong lúc luyện
   const [hidePinyin, setHidePinyin] = useState(false);
   const [hideHanzi, setHideHanzi] = useState(false);
-  const [showAnswerInQA, setShowAnswerInQA] = useState(false);
 
-  // Trạng thái chấm điểm lượt hiện tại
+  // Trạng thái chấm điểm
   const [lastScore, setLastScore] = useState<ScoreOutput | null>(null);
   const [attemptCount, setAttemptCount] = useState<number>(0);
   const [heardText, setHeardText] = useState<string>('');
   const [activeTip, setActiveTip] = useState<string | null>(null);
-  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
 
   // Hook nhận diện giọng nói
   const {
@@ -77,54 +66,34 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
     },
   });
 
-  // Tải danh sách nhóm câu
-  useEffect(() => {
-    const fetchGroups = async () => {
-      setIsLoadingGroups(true);
-      if (isSupabaseConfigured) {
-        const { data } = await supabase
-          .from('phrase_groups')
-          .select('*, phrase_pairs(count)')
-          .order('sort', { ascending: true });
+  // Đếm số lượng câu mẫu trong mỗi nhóm (tính tức thì 0ms từ bộ nạp sẵn)
+  const getGroupCount = (group: PhraseGroup) => {
+    const matched = INITIAL_PHRASE_PAIRS.filter(
+      (p) => p.slug === group.slug || p.groupId === group.id
+    );
+    return matched.length > 0 ? matched.length : 8;
+  };
 
-        if (data) {
-          setGroups(
-            data.map((g: any) => ({
-              id: g.id,
-              kind: g.kind,
-              slug: g.slug,
-              emoji: g.emoji || '📖',
-              titleVi: g.title_vi,
-              sort: g.sort,
-              totalCount: g.phrase_pairs?.[0]?.count || 0,
-            }))
-          );
-        }
-      }
-      setIsLoadingGroups(false);
-    };
-
-    fetchGroups();
-  }, []);
-
-  // Nếu được truyền một câu cụ thể để luyện (từ Mẫu câu hoặc Sổ lỗi)
+  // Nếu được truyền một câu cụ thể để luyện (từ tab Mẫu câu)
   useEffect(() => {
     if (initialPhrase?.a) {
       const qHanzi = initialPhrase.q || '请读出以下句子：';
       const qPinyin = pinyin(qHanzi);
       const aHanzi = initialPhrase.a;
       const aPinyin = pinyin(aHanzi);
-      setPracticeQueue([{
-        id: 999999,
-        groupId: 0,
-        sort: 1,
-        qHanzi,
-        qPinyin,
-        qVi: initialPhrase.q ? 'Câu hỏi / ngữ cảnh' : 'Hãy đọc to câu sau:',
-        aHanzi,
-        aPinyin,
-        aVi: '',
-      }]);
+      setPracticeQueue([
+        {
+          id: 999999,
+          groupId: 0,
+          sort: 1,
+          qHanzi,
+          qPinyin,
+          qVi: initialPhrase.q ? 'Câu hỏi / ngữ cảnh' : 'Hãy đọc to câu sau:',
+          aHanzi,
+          aPinyin,
+          aVi: '',
+        },
+      ]);
       setCurrentIndex(0);
       setLastScore(null);
       setAttemptCount(0);
@@ -134,94 +103,19 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
     }
   }, [initialPhrase]);
 
-  // Bắt đầu một buổi luyện tập
-  const handleStartPractice = async (group?: PhraseGroup) => {
-    let items: PhrasePair[] = [];
+  // Bắt đầu buổi luyện tập nhại lại câu mẫu
+  const handleStartPractice = (group: PhraseGroup) => {
+    setSelectedGroup(group);
 
-    if (sourceType === 'mistakes') {
-      // Tải từ sổ lỗi
-      if (user && isSupabaseConfigured) {
-        const { data } = await supabase
-          .from('mistakes')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('passed', false)
-          .limit(15);
-        if (data && data.length > 0) {
-          items = data.map((m: any, idx: number) => ({
-            id: m.id,
-            groupId: 0,
-            sort: idx,
-            qHanzi: '请读出以下正确句子：',
-            qPinyin: 'Qǐng dú chū yǐxià zhèngquè jùzi:',
-            qVi: 'Hãy đọc lại câu chuẩn sau:',
-            aHanzi: m.correct_hanzi,
-            aPinyin: m.correct_pinyin || '',
-            aVi: m.correct_vi || '',
-          }));
-        }
-      }
-    } else if (sourceType === 'favorites') {
-      // Tải các câu yêu thích
-      if (user && isSupabaseConfigured) {
-        const { data } = await supabase
-          .from('user_phrase_progress')
-          .select('phrase_pairs(*)')
-          .eq('user_id', user.id)
-          .eq('favorited', true);
-        if (data) {
-          items = data.map((d: any) => ({
-            id: d.phrase_pairs.id,
-            groupId: d.phrase_pairs.group_id,
-            sort: d.phrase_pairs.sort,
-            qHanzi: d.phrase_pairs.q_hanzi,
-            qPinyin: d.phrase_pairs.q_pinyin,
-            qVi: d.phrase_pairs.q_vi,
-            aHanzi: d.phrase_pairs.a_hanzi,
-            aPinyin: d.phrase_pairs.a_pinyin,
-            aVi: d.phrase_pairs.a_vi,
-          }));
-        }
-      }
-    } else if (group) {
-      // Tải theo nhóm: Ưu tiên dữ liệu nạp sẵn tức thì
-      const localMatches = INITIAL_PHRASE_PAIRS.filter(
-        (p) => p.slug === group.slug || p.groupId === group.id
-      );
-      if (localMatches.length > 0) {
-        items = localMatches;
-      }
+    // Ưu tiên lấy ngay lập tức từ bộ nạp sẵn (0ms)
+    const localMatches = INITIAL_PHRASE_PAIRS.filter(
+      (p) => p.slug === group.slug || p.groupId === group.id
+    );
 
-      // Đồng bộ thêm từ Supabase nếu có
-      if (isSupabaseConfigured) {
-        try {
-          const { data } = await supabase
-            .from('phrase_pairs')
-            .select('*')
-            .eq('group_id', group.id)
-            .order('sort', { ascending: true });
-          if (data && data.length > 0) {
-            items = data.map((p: any) => ({
-              id: p.id,
-              groupId: p.group_id,
-              sort: p.sort,
-              qHanzi: p.q_hanzi,
-              qPinyin: p.q_pinyin,
-              qVi: p.q_vi,
-              aHanzi: p.a_hanzi,
-              aPinyin: p.a_pinyin,
-              aVi: p.a_vi,
-              noteVi: p.note_vi,
-            }));
-          }
-        } catch (e) {
-          console.warn('Lỗi tải pairs từ Supabase cho Shadowing, dùng bộ nạp sẵn:', e);
-        }
-      }
-    }
+    const items: PhrasePair[] = localMatches.length > 0 ? localMatches : [];
 
     if (items.length === 0) {
-      alert('Không có câu nào trong danh mục này! Hãy chọn nhóm khác nhé.');
+      alert('Không có câu nào trong nhóm này!');
       return;
     }
 
@@ -231,26 +125,57 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
     setAttemptCount(0);
     setHeardText('');
     setActiveTip(null);
-    setShowAnswerInQA(false);
     setIsSessionActive(true);
     setIsSummaryActive(false);
 
-    // Phát âm câu đầu tiên sau 300ms
+    // Phát âm câu mẫu đầu tiên sau 350ms
     setTimeout(() => {
-      playPromptAudio(items[0]);
-    }, 400);
+      if (items[0]) {
+        playZhAudio(items[0].aHanzi, settings.speechRate || 1.0);
+      }
+    }, 350);
+
+    // Đồng bộ thêm câu mới từ Supabase ở chế độ chạy ngầm nếu có
+    if (isSupabaseConfigured) {
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from('phrase_pairs')
+            .select('*')
+            .eq('group_id', group.id)
+            .order('sort', { ascending: true });
+
+          if (data && data.length > items.length) {
+            setPracticeQueue(
+              data.map((p: any) => ({
+                id: p.id,
+                groupId: p.group_id,
+                sort: p.sort,
+                qHanzi: p.q_hanzi,
+                qPinyin: p.q_pinyin,
+                qVi: p.q_vi,
+                aHanzi: p.a_hanzi,
+                aPinyin: p.a_pinyin,
+                aVi: p.a_vi,
+                noteVi: p.note_vi,
+              }))
+            );
+          }
+        } catch (e) {}
+      })();
+    }
   };
 
   const currentItem = practiceQueue[currentIndex];
 
   // Phát âm câu mẫu
-  const playPromptAudio = (item: PhrasePair, rateMultiplier: number = 1.0) => {
-    const textToSpeak = mode === 'qa' ? item.qHanzi : item.aHanzi;
-    playZhAudio(textToSpeak, (settings.speechRate || 1.0) * rateMultiplier);
+  const playPromptAudio = (rateMultiplier: number = 1.0) => {
+    if (!currentItem) return;
+    playZhAudio(currentItem.aHanzi, (settings.speechRate || 1.0) * rateMultiplier);
   };
 
   // Chấm điểm âm tiết
-  const handleGrade = async (spoken: string) => {
+  const handleGrade = (spoken: string) => {
     if (!currentItem) return;
 
     const targetHanzi = currentItem.aHanzi;
@@ -259,7 +184,7 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
     setLastScore(result);
     setAttemptCount((prev) => prev + 1);
 
-    // Tìm mẹo thanh điệu nếu sai
+    // Mẹo thanh điệu khi sai
     const failedSyllable = result.perSyllable.find((s) => s.status !== 'ok');
     if (failedSyllable) {
       setActiveTip(getTipForSyllable(failedSyllable.target));
@@ -267,50 +192,27 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
       setActiveTip(null);
     }
 
-    // Lưu tiến trình vào Supabase nếu đạt hoặc có điểm tốt
+    // Lưu ngầm tiến trình (không block UI)
     if (user && isSupabaseConfigured) {
-      try {
-        await supabase.from('user_phrase_progress').upsert({
-          user_id: user.id,
-          pair_id: currentItem.id,
-          best_score: Math.max(result.score, currentItem.bestScore || 0),
-          attempts: (currentItem.attempts || 0) + 1,
-          passed: result.passed || currentItem.passed,
-          last_practiced_at: new Date().toISOString(),
-        });
-
-        // Tăng daily_activity.shadowing_done
-        const todayVn = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+      (async () => {
         try {
+          await supabase.from('user_phrase_progress').upsert({
+            user_id: user.id,
+            pair_id: currentItem.id,
+            best_score: Math.max(result.score, currentItem.bestScore || 0),
+            attempts: (currentItem.attempts || 0) + 1,
+            passed: result.passed || currentItem.passed,
+            last_practiced_at: new Date().toISOString(),
+          });
+
+          const todayVn = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
           await supabase.rpc('increment_daily_activity', {
             p_user_id: user.id,
             p_day: todayVn,
             p_column: 'shadowing_done',
           });
-        } catch {
-          // Fallback nếu rpc chưa tạo
-          await supabase.from('daily_activity').upsert({
-            user_id: user.id,
-            day: todayVn,
-            shadowing_done: 1,
-          });
-        }
-      } catch (e) {}
-    }
-
-    // Nếu không đạt và đã thử ≥ 3 lần, tự động thêm vào sổ lỗi (mistakes)
-    if (!result.passed && attemptCount >= 2 && user && isSupabaseConfigured) {
-      await supabase.from('mistakes').insert({
-        user_id: user.id,
-        user_said: spoken,
-        correct_hanzi: currentItem.aHanzi,
-        correct_pinyin: currentItem.aPinyin,
-        correct_vi: currentItem.aVi,
-        explanation: 'Luyện chưa đạt trong buổi Shadowing',
-        error_type: 'pronunciation',
-        best_score: result.score,
-        passed: false,
-      });
+        } catch (e) {}
+      })();
     }
   };
 
@@ -323,12 +225,25 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
       setAttemptCount(0);
       setHeardText('');
       setActiveTip(null);
-      setShowAnswerInQA(false);
       setTimeout(() => {
-        playPromptAudio(practiceQueue[nextIdx]);
+        if (practiceQueue[nextIdx]) {
+          playZhAudio(practiceQueue[nextIdx].aHanzi, settings.speechRate || 1.0);
+        }
       }, 300);
     } else {
       setIsSummaryActive(true);
+    }
+  };
+
+  // Quay lại câu trước đó
+  const handlePrevQuestion = () => {
+    if (currentIndex > 0) {
+      const prevIdx = currentIndex - 1;
+      setCurrentIndex(prevIdx);
+      setLastScore(null);
+      setAttemptCount(0);
+      setHeardText('');
+      setActiveTip(null);
     }
   };
 
@@ -344,7 +259,9 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
   return (
     <div className="pb-24 pt-3 px-4 max-w-md mx-auto animate-fade-in">
       {!isSessionActive ? (
-        // ===== MÀN HÌNH 1: CHỌN NỘI DUNG & CHẾ ĐỘ SHADOWING =====
+        // ==============================================================
+        // MÀN HÌNH 1: DANH SÁCH NHÓM CÂU ĐỂ LUYỆN SHADOWING (100% NHẠI LẠI)
+        // ==============================================================
         <div>
           <div className="text-center mb-5">
             <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-2.5">
@@ -352,165 +269,80 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
             </div>
             <h2 className="text-xl font-black text-stone-900">Luyện nói Shadowing</h2>
             <p className="text-xs text-stone-500 max-w-xs mx-auto mt-1 leading-relaxed">
-              Nghe câu mẫu ➔ Nhại lại ➔ Chấm điểm từng âm tiết xanh/cam/đỏ ➔ Lặp lại tới khi đạt chuẩn!
+              Nghe câu mẫu ➔ Nhại lại phát âm ➔ Chấm điểm từng âm tiết xanh/cam/đỏ ➔ Hoàn thiện giọng nói chuẩn!
             </p>
           </div>
 
-          {/* 1. Chọn chế độ luyện */}
+          {/* Chọn nguồn: Đời sống (8 nhóm) vs Công sở (6 nhóm) */}
           <div className="mb-4">
-            <label className="text-xs font-bold text-stone-700 uppercase tracking-wider block mb-2 px-1">
-              1. Chọn kiểu luyện nói:
-            </label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setMode('mimic')}
-                className={`p-3 rounded-2xl border text-left transition-all ${
-                  mode === 'mimic'
-                    ? 'border-red-500 bg-red-50 text-red-900 shadow-2xs font-bold'
-                    : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
-                }`}
-              >
-                <div className="text-xs flex items-center gap-1.5">
-                  <Headphones className="w-3.5 h-3.5 text-red-600" />
-                  <span>Nhại lại câu mẫu</span>
-                </div>
-                <div className="text-[10px] text-stone-500 font-normal mt-0.5">
-                  Nghe người bản xứ nói rồi lặp lại y hệt
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMode('qa')}
-                className={`p-3 rounded-2xl border text-left transition-all ${
-                  mode === 'qa'
-                    ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-2xs font-bold'
-                    : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
-                }`}
-              >
-                <div className="text-xs flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Đối đáp phản xạ</span>
-                </div>
-                <div className="text-[10px] text-stone-500 font-normal mt-0.5">
-                  Nghe câu hỏi và tự nhớ câu trả lời để nói
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* 2. Chọn nguồn bài luyện */}
-          <div className="mb-4">
-            <label className="text-xs font-bold text-stone-700 uppercase tracking-wider block mb-2 px-1">
-              2. Chọn nguồn bài luyện:
-            </label>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <button
-                type="button"
                 onClick={() => setSourceType('daily')}
-                className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 ${
+                className={`py-3 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
                   sourceType === 'daily'
-                    ? 'border-stone-900 bg-stone-900 text-white'
-                    : 'border-stone-200 bg-white text-stone-700'
+                    ? 'border-red-500 bg-red-50 text-red-700 shadow-2xs ring-1 ring-red-500/20'
+                    : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
                 }`}
               >
-                <Coffee className="w-3.5 h-3.5" />
-                <span>Mẫu câu Đời sống</span>
+                <Coffee className="w-4 h-4 text-red-600" />
+                <span>Mẫu câu Đời sống (8)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setSourceType('workplace')}
-                className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 ${
+                className={`py-3 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
                   sourceType === 'workplace'
-                    ? 'border-stone-900 bg-stone-900 text-white'
-                    : 'border-stone-200 bg-white text-stone-700'
+                    ? 'border-red-500 bg-red-50 text-red-700 shadow-2xs ring-1 ring-red-500/20'
+                    : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
                 }`}
               >
-                <Briefcase className="w-3.5 h-3.5" />
-                <span>Mẫu câu Công sở</span>
-              </button>
-            </div>
-
-            {/* Quick access: Sổ lỗi & Yêu thích */}
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setSourceType('mistakes');
-                  handleStartPractice();
-                }}
-                className="p-3 rounded-2xl border border-rose-200 bg-rose-50/70 hover:bg-rose-100/70 text-left transition-colors"
-              >
-                <div className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
-                  <BookMarked className="w-4 h-4 text-rose-600" />
-                  <span>Luyện lại câu sai</span>
-                </div>
-                <div className="text-[10px] text-rose-700 mt-0.5">Lấy trực tiếp từ Sổ lỗi</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSourceType('favorites');
-                  handleStartPractice();
-                }}
-                className="p-3 rounded-2xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100/70 text-left transition-colors"
-              >
-                <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                  <Star className="w-4 h-4 text-amber-600 fill-amber-500" />
-                  <span>Câu yêu thích</span>
-                </div>
-                <div className="text-[10px] text-amber-700 mt-0.5">Các câu đã đánh dấu ⭐</div>
+                <Briefcase className="w-4 h-4 text-red-600" />
+                <span>Mẫu câu Công sở (6)</span>
               </button>
             </div>
           </div>
 
-          {/* 3. Danh sách nhóm để bấm vào bắt đầu */}
-          {(sourceType === 'daily' || sourceType === 'workplace') && (
-            <div className="space-y-2">
-              <div className="text-xs font-bold text-stone-500 uppercase tracking-wider px-1">
-                Chọn nhóm câu muốn luyện:
-              </div>
-
-              {isLoadingGroups ? (
-                <div className="py-8 flex justify-center text-stone-400">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                </div>
-              ) : (
-                groups
-                  .filter((g) => g.kind === sourceType)
-                  .map((group) => (
-                    <button
-                      key={group.id}
-                      type="button"
-                      onClick={() => handleStartPractice(group)}
-                      className="w-full p-3.5 bg-white hover:bg-stone-50 border border-stone-200 rounded-2xl flex items-center justify-between text-left shadow-2xs active:scale-98 transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{group.emoji}</span>
-                        <div>
-                          <div className="font-bold text-sm text-stone-900 group-hover:text-red-600 transition-colors">
-                            {group.titleVi}
-                          </div>
-                          <div className="text-[11px] text-stone-500">
-                            {group.totalCount || 0} câu mẫu
-                          </div>
-                        </div>
-                      </div>
-                      <div className="px-3 py-1 bg-red-50 text-red-700 rounded-xl text-xs font-bold flex items-center gap-1 group-hover:bg-red-600 group-hover:text-white transition-colors">
-                        <span>Luyện</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </div>
-                    </button>
-                  ))
-              )}
+          {/* Danh sách các nhóm câu nạp sẵn tức thì 0ms */}
+          <div className="space-y-2.5">
+            <div className="text-xs font-bold text-stone-500 uppercase tracking-wider px-1">
+              Chọn nhóm câu muốn luyện:
             </div>
-          )}
+
+            {INITIAL_PHRASE_GROUPS.filter((g) => g.kind === sourceType).map((group) => {
+              const count = getGroupCount(group);
+              return (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() => handleStartPractice(group)}
+                  className="w-full p-4 bg-white hover:bg-red-50/40 border border-stone-200 rounded-2xl flex items-center justify-between text-left shadow-2xs active:scale-[0.99] transition-all group"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <span className="text-2xl">{group.emoji}</span>
+                    <div>
+                      <div className="font-bold text-sm text-stone-900 group-hover:text-red-600 transition-colors">
+                        {group.titleVi}
+                      </div>
+                      <div className="text-[11px] text-stone-500 mt-0.5">
+                        {count} câu mẫu nhại lại
+                      </div>
+                    </div>
+                  </div>
+                  <div className="px-3 py-1.5 bg-red-50 text-red-700 rounded-xl text-xs font-bold flex items-center gap-1 group-hover:bg-red-600 group-hover:text-white transition-colors">
+                    <span>Luyện nói</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : isSummaryActive ? (
-        // ===== MÀN HÌNH TỔNG KẾT BUỔI SHADOWING =====
+        // ==============================================================
+        // MÀN HÌNH 2: TỔNG KẾT HOÀN THÀNH BÀI SHADOWING
+        // ==============================================================
         <div className="text-center py-6 animate-fade-in">
           <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3 text-3xl shadow-xs">
             🎉
@@ -520,11 +352,15 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
 
           <div className="bg-white rounded-3xl p-5 border border-stone-200/90 shadow-xs mb-6 text-left space-y-3">
             <div className="flex items-center justify-between pb-3 border-b border-stone-100 text-xs">
-              <span className="text-stone-500">Tổng số câu luyện:</span>
+              <span className="text-stone-500">Chủ đề vừa luyện:</span>
+              <span className="font-bold text-stone-900">{selectedGroup?.titleVi || 'Mẫu câu'}</span>
+            </div>
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100 text-xs">
+              <span className="text-stone-500">Tổng số câu đã qua:</span>
               <span className="font-bold text-stone-900">{practiceQueue.length} câu</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-stone-500">Ngưỡng đạt yêu cầu:</span>
+              <span className="text-stone-500">Ngưỡng điểm đạt:</span>
               <span className="font-bold text-emerald-700">≥ {settings.passThreshold || 80}%</span>
             </div>
           </div>
@@ -532,11 +368,17 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
           <div className="space-y-2">
             <button
               type="button"
-              onClick={() => handleStartPractice(selectedGroup || undefined)}
+              onClick={() => {
+                if (selectedGroup) {
+                  handleStartPractice(selectedGroup);
+                } else {
+                  setIsSessionActive(false);
+                }
+              }}
               className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-sm shadow-md active:scale-98 transition-all flex items-center justify-center gap-2"
             >
               <RotateCcw className="w-4 h-4" />
-              <span>Luyện lại bộ này</span>
+              <span>Luyện lại bài này</span>
             </button>
             <button
               type="button"
@@ -548,29 +390,35 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
           </div>
         </div>
       ) : (
-        // ===== MÀN HÌNH 2: LUYỆN TẬP TỪNG CÂU =====
+        // ==============================================================
+        // MÀN HÌNH 3: PHIÊN LUYỆN TẬP NHẠI LẠI TỪNG CÂU
+        // ==============================================================
         currentItem && (
           <div className="space-y-4">
-            {/* Header thanh tiến độ */}
+            {/* Header thanh điều hướng */}
             <div className="flex items-center justify-between pb-2 border-b border-stone-200">
               <button
                 type="button"
                 onClick={() => setIsSessionActive(false)}
-                className="inline-flex items-center gap-1 text-xs font-bold text-stone-600 hover:text-stone-900"
+                className="inline-flex items-center gap-1 text-xs font-bold text-stone-600 hover:text-stone-900 py-1 px-2 rounded-lg hover:bg-stone-100 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Thoát</span>
               </button>
+
               <div className="text-xs font-bold text-stone-900">
                 Câu {currentIndex + 1} / {practiceQueue.length}
               </div>
-              {/* Công tắc ẩn Pinyin/Hán tự */}
+
+              {/* Công tắc ẩn/hiện Pinyin và Chữ Hán */}
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setHidePinyin(!hidePinyin)}
                   className={`p-1.5 rounded-xl border text-[11px] font-bold ${
-                    hidePinyin ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-stone-100 text-stone-600 border-stone-200'
+                    hidePinyin
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : 'bg-stone-100 text-stone-600 border-stone-200'
                   }`}
                   title="Ẩn/Hiện Pinyin"
                 >
@@ -580,7 +428,9 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
                   type="button"
                   onClick={() => setHideHanzi(!hideHanzi)}
                   className={`p-1.5 rounded-xl border text-[11px] font-bold ${
-                    hideHanzi ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-stone-100 text-stone-600 border-stone-200'
+                    hideHanzi
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : 'bg-stone-100 text-stone-600 border-stone-200'
                   }`}
                   title="Ẩn/Hiện Chữ Hán"
                 >
@@ -589,80 +439,54 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
               </div>
             </div>
 
-            {/* Thẻ câu mẫu */}
-            <div className="bg-white rounded-3xl p-5 border border-stone-200/90 shadow-xs space-y-3">
-              {mode === 'qa' && (
-                <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200/60 mb-2">
-                  <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">
-                    ❓ Câu hỏi:
-                  </div>
-                  <div className="text-base font-bold text-stone-900">{currentItem.qHanzi}</div>
-                  <div className="text-xs text-red-700 font-semibold">{currentItem.qPinyin}</div>
-                  <div className="text-xs text-stone-600 italic">"{currentItem.qVi}"</div>
-                </div>
-              )}
-
-              {/* Câu trả lời mục tiêu (Target) */}
-              <div>
-                <div className="text-[10px] font-bold text-red-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                  <span>{mode === 'qa' ? '✅ Bạn cần nói câu này:' : '🎧 Câu mẫu nhại theo:'}</span>
-                  {mode === 'qa' && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAnswerInQA(!showAnswerInQA)}
-                      className="text-[10px] text-amber-800 hover:underline font-bold"
-                    >
-                      {showAnswerInQA ? 'Che lại' : 'Xem đáp án'}
-                    </button>
-                  )}
-                </div>
-
-                {mode === 'qa' && !showAnswerInQA ? (
-                  <div className="py-4 text-center text-xs text-stone-400 border border-dashed border-stone-200 rounded-2xl">
-                    Hãy nhớ lại câu trả lời và bấm Mic để nói
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {!hideHanzi && (
-                      <div className="text-2xl font-bold text-stone-900 tracking-wide font-sans">
-                        {currentItem.aHanzi}
-                      </div>
-                    )}
-                    {!hidePinyin && (
-                      <div className="text-xs font-semibold text-red-700 tracking-wide">
-                        {currentItem.aPinyin}
-                      </div>
-                    )}
-                    <div className="text-xs text-stone-600 italic">
-                      "{currentItem.aVi}"
-                    </div>
-                  </div>
+            {/* Thẻ câu mẫu nhại theo */}
+            <div className="bg-white rounded-3xl p-5 border border-stone-200/90 shadow-2xs space-y-3">
+              <div className="text-[10px] font-bold text-red-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>🎧 CÂU MẪU NHẠI THEO:</span>
+                {currentItem.qVi && (
+                  <span className="text-stone-400 font-normal lowercase">{currentItem.qVi}</span>
                 )}
               </div>
 
-              {/* Nút nghe lại */}
+              <div className="space-y-1 py-1">
+                {!hideHanzi && (
+                  <div className="text-2xl font-black text-stone-900 tracking-wide font-sans">
+                    {currentItem.aHanzi}
+                  </div>
+                )}
+                {!hidePinyin && (
+                  <div className="text-sm font-bold text-red-600 tracking-wide font-mono">
+                    {currentItem.aPinyin}
+                  </div>
+                )}
+                <div className="text-xs text-stone-600 italic">
+                  "{currentItem.aVi}"
+                </div>
+              </div>
+
+              {/* Nút nghe lại chuẩn và chậm */}
               <div className="flex items-center gap-2 pt-2 border-t border-stone-100">
                 <button
                   type="button"
-                  onClick={() => playPromptAudio(currentItem, 1.0)}
-                  className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs"
+                  onClick={() => playPromptAudio(1.0)}
+                  className="px-3.5 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs"
                 >
-                  <Volume2 className="w-3.5 h-3.5" />
+                  <Volume2 className="w-4 h-4 text-stone-700" />
                   <span>Nghe mẫu</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => playPromptAudio(currentItem, 0.7)}
-                  className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs"
+                  onClick={() => playPromptAudio(0.75)}
+                  className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs"
                 >
-                  <Turtle className="w-3.5 h-3.5 text-amber-600" />
+                  <Turtle className="w-4 h-4 text-amber-600" />
                   <span>Nghe chậm</span>
                 </button>
               </div>
             </div>
 
-            {/* BẢNG KẾT QUẢ CHẤM ĐIỂM (nếu đã nói) */}
+            {/* BẢNG KẾT QUẢ CHẤM ĐIỂM (sau khi đọc) */}
             {lastScore && (
               <div className="bg-white rounded-3xl p-4 border border-stone-200/90 shadow-sm space-y-3 animate-fade-in">
                 <div className="flex items-center justify-between">
@@ -682,7 +506,7 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
                     <button
                       type="button"
                       onClick={handleNextQuestion}
-                      className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1 shadow-xs active:scale-95 transition-transform"
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1 shadow-xs active:scale-95 transition-transform"
                     >
                       <span>Câu tiếp</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -708,11 +532,11 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
             )}
 
             {/* KHU VỰC THU ÂM & MIC BUTTON */}
-            <div className="pt-2 flex flex-col items-center">
+            <div className="pt-1 flex flex-col items-center">
               {isListening && (
-                <div className="mb-2 p-2.5 rounded-2xl bg-red-50 border border-red-200 text-center w-full animate-fade-in">
+                <div className="mb-2.5 p-3 rounded-2xl bg-red-50 border border-red-200 text-center w-full animate-fade-in">
                   <div className="text-xs font-bold text-red-700 uppercase tracking-wider mb-0.5">
-                    🎙️ Đang nghe... Hãy nói câu tiếng Trung
+                    🎙️ Đang nghe... Hãy nhại lại câu mẫu
                   </div>
                   <div className="text-sm font-bold text-stone-900 min-h-[22px]">
                     {((transcript ? transcript + ' ' : '') + (interimTranscript || '')).trim() || 'Nói to rõ vào mic...'}
@@ -747,6 +571,30 @@ export const ShadowingTab: React.FC<ShadowingTabProps> = ({ initialPhrase }) => 
                   ? 'Nói xong bấm lại nút để chấm điểm ngay'
                   : 'Bấm nút mic để nhại lại câu mẫu'}
               </p>
+            </div>
+
+            {/* THANH ĐIỀU HƯỚNG CHUYỂN CÂU (KHÔNG BAO GIỜ BỊ KẸT) */}
+            <div className="pt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePrevQuestion}
+                disabled={currentIndex === 0}
+                className="py-3 px-4 rounded-2xl bg-stone-100 hover:bg-stone-200 disabled:opacity-40 text-stone-700 font-bold text-xs flex items-center gap-1 active:scale-95 transition-all shadow-2xs"
+                title="Về câu trước"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Câu trước</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNextQuestion}
+                className="flex-1 py-3 px-4 rounded-2xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 active:scale-98 transition-all"
+                title="Bỏ qua hoặc sang câu tiếp theo"
+              >
+                <span>{currentIndex + 1 === practiceQueue.length ? 'Hoàn thành bài' : 'Câu tiếp theo'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         )

@@ -177,7 +177,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
               )}
 
               {/* Nghĩa tiếng Việt */}
-              {settings.showVietnamese && message.vietnamese && (
+              {(settings.showVi ?? (settings as any).showVietnamese ?? true) && message.vietnamese && (
                 <div className="text-xs sm:text-sm text-stone-600 italic mb-2">
                   "{message.vietnamese}"
                 </div>

@@ -135,10 +135,12 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                 <Sparkles className="w-4 h-4 text-amber-600" />
                 <span>Số từ vựng mới mỗi ngày (Flashcard)</span>
               </span>
-              <span className="text-red-600 font-bold">{settings.dailyNewCards} từ</span>
+              <span className="text-red-600 font-bold">
+                {settings.dailyNewCards >= 100 ? 'Không giới hạn' : `${settings.dailyNewCards} từ`}
+              </span>
             </label>
             <div className="grid grid-cols-5 gap-1.5">
-              {[5, 10, 15, 20, 30].map((num) => (
+              {[10, 20, 30, 50, 999].map((num) => (
                 <button
                   key={num}
                   type="button"
@@ -149,7 +151,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                       : 'border-stone-200 bg-stone-50 text-stone-600'
                   }`}
                 >
-                  {num}
+                  {num === 999 ? 'Tất cả' : num}
                 </button>
               ))}
             </div>
